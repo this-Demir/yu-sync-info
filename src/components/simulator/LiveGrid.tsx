@@ -1,9 +1,19 @@
-
+import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSimulationStore } from "../../store/useSimulationStore";
-import { SLOTS, parseHHMM } from "../../core/time";
-import type { DayName } from "../../core/types";
+import { SLOTS, parseHHMM, emptyWeekMask } from "../../core/time";
+import type { DayName, Section } from "../../core/types";
 
 const WEEKDAYS: DayName[] = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday"];
+
+const SOFT_COLORS = ['#FEF2F2', '#FFF7ED', '#FFFBEB', '#FEFCE8', '#F7FEE7', '#F0FDF4', '#ECFDF5', '#F0FDFA', '#ECFEFF', '#F0F9FF', '#EFF6FF', '#EEF2FF', '#F5F3FF', '#FAF5FF', '#FDF4FF', '#FDF2F8', '#FFF1F2', '#F0F4F8', '#E6F7FF', '#F9F0FF', '#FFF0F5', '#E6FFFA', '#F0FFF0', '#FFFDE6', '#FFF0E6'];
+
+function getSoftColor(code: string) {
+    let hash = 0;
+    for (let i = 0; i < code.length; i++) {
+        hash += code.charCodeAt(i);
+    }
+    return SOFT_COLORS[hash % 25];
+}
 
 // Helper to calculate position top% and height% based on day start/end
 const DAY_START_MIN = parseHHMM(SLOTS[0]!); // 08:40 -> 520
@@ -45,24 +55,69 @@ function getBits(num: number = 0) {
     return Array.from({ length: 12 }, (_, i) => (num & (1 << i)) ? 1 : 0);
 }
 
+function calculateMaskForSections(sections: Section[]) {
+    const mask = emptyWeekMask();
+    sections.forEach(sec => {
+        sec.days.forEach(d => {
+            const slots = getAffectedSlots(d.startTime, d.endTime);
+            slots.forEach(i => {
+                mask[d.day as DayName] |= (1 << i);
+            });
+        });
+    });
+    return mask;
+}
+
 export default function LiveGrid() {
-    const { currentState } = useSimulationStore();
+    const { currentState, validSchedules, activeValidScheduleIndex, setActiveSchedule, isPlaying } = useSimulationStore();
 
     // Safety fallback
-    const chosenBlocks = currentState?.chosenSections || [];
-    const evalBlock = currentState?.evaluatingSection || null;
     const step = currentState?.step || "IDLE";
+    const showValid = validSchedules.length > 0 && (!isPlaying || step === "COMPLETE");
+
+    let chosenBlocks = currentState?.chosenSections || [];
+    let currentMask = currentState?.currentMask;
+
+    if (showValid) {
+        chosenBlocks = validSchedules[activeValidScheduleIndex] || [];
+        currentMask = calculateMaskForSections(chosenBlocks);
+    }
+
+    const evalBlock = !showValid ? (currentState?.evaluatingSection || null) : null;
 
     // Bitmask Visualization Info
-    const currentMask = currentState?.currentMask;
-    const isConflict = step === "CONFLICT";
-    const isEvaluating = step === "SELECTING" || step === "BITMASK_CHECK" || isConflict;
+    const isConflict = !showValid && step === "CONFLICT";
+    const isEvaluating = !showValid && (step === "SELECTING" || step === "BITMASK_CHECK" || isConflict);
 
     return (
-        <div className="w-full h-full flex flex-col min-h-[400px]">
+        <div className="w-full h-full flex flex-col relative overflow-hidden">
+            {/* Pagination Controls */}
+            {validSchedules.length > 0 && (
+                <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 shrink-0">
+                    <span className="font-mono text-[10px] text-gray-500 tracking-wider uppercase">Valid Schedules Found</span>
+                    <div className="flex items-center gap-2">
+                        <button
+                            onClick={() => setActiveSchedule((activeValidScheduleIndex - 1 + validSchedules.length) % validSchedules.length)}
+                            className="p-1 hover:bg-gray-100 rounded-md text-gray-600 transition-colors border border-transparent hover:border-gray-200"
+                        >
+                            <ChevronLeft size={16} />
+                        </button>
+                        <span className="font-mono text-xs text-gray-600 tracking-widest min-w-[140px] text-center uppercase">
+                            Schedule {activeValidScheduleIndex + 1} of {validSchedules.length}
+                        </span>
+                        <button
+                            onClick={() => setActiveSchedule((activeValidScheduleIndex + 1) % validSchedules.length)}
+                            className="p-1 hover:bg-gray-100 rounded-md text-gray-600 transition-colors border border-transparent hover:border-gray-200"
+                        >
+                            <ChevronRight size={16} />
+                        </button>
+                    </div>
+                </div>
+            )}
+
             {/* Header / Days */}
-            <div className="flex border-b border-slate-700 w-full shrink-0">
-                <div className="w-16 border-r border-slate-700 flex items-center justify-center text-[10px] text-slate-500 font-bold tracking-widest bg-slate-900/50">
+            <div className="flex border-b border-gray-100 w-full shrink-0">
+                <div className="w-16 border-r border-gray-100 flex items-center justify-center text-[10px] text-gray-400 font-sans tracking-widest bg-white">
                     TIME
                 </div>
                 {WEEKDAYS.map(day => {
@@ -82,24 +137,24 @@ export default function LiveGrid() {
                     const hasConflict = result > 0;
 
                     return (
-                        <div key={day} className="flex-1 py-1 flex flex-col items-center justify-center bg-slate-900/50 border-r border-slate-800 last:border-0 overflow-hidden">
-                            <span className="text-xs font-semibold text-slate-300 tracking-wider">
+                        <div key={day} className="flex-1 py-1.5 flex flex-col items-center justify-center bg-white border-r border-gray-100 last:border-0 overflow-hidden">
+                            <span className="text-xs font-semibold text-gray-600 tracking-widest font-sans">
                                 {day.substring(0, 3).toUpperCase()}
                             </span>
 
                             {/* Decimal Bit Math Display */}
                             <div className="flex flex-col items-center mt-0.5 justify-center h-4">
                                 {!isTestingDay ? (
-                                    <span className="text-[9px] font-mono text-slate-500 opacity-60">
+                                    <span className="text-xs font-mono text-gray-400">
                                         [{dayMaskVal}]
                                     </span>
                                 ) : (
-                                    <div className="flex items-center text-[9px] font-mono whitespace-nowrap">
-                                        <span className="text-slate-500">{dayMaskVal}</span>
+                                    <div className="flex items-center text-xs font-mono whitespace-nowrap bg-white px-1.5 py-[1px] rounded border border-gray-100 shadow-sm">
+                                        <span className="text-gray-600">{dayMaskVal}</span>
                                         <span className="text-amber-500/70 mx-0.5">&</span>
-                                        <span className="text-amber-400">{evalMaskVal}</span>
-                                        <span className="text-slate-600 mx-0.5">=</span>
-                                        <span className={`font-bold ${hasConflict ? 'text-rose-500 animate-pulse' : 'text-emerald-500'}`}>
+                                        <span className="text-amber-600">{evalMaskVal}</span>
+                                        <span className="text-gray-400 mx-0.5">=</span>
+                                        <span className={`font-semibold ${hasConflict ? 'text-red-600' : 'text-emerald-600'}`}>
                                             {result}
                                         </span>
                                     </div>
@@ -111,12 +166,12 @@ export default function LiveGrid() {
             </div>
 
             {/* Grid Body */}
-            <div className="flex-1 flex w-full relative overflow-y-auto overflow-x-hidden custom-scrollbar bg-slate-950 font-mono">
+            <div className="flex-1 flex w-full relative overflow-hidden bg-white/50 font-mono">
 
                 {/* Time Axis */}
-                <div className="w-16 border-r border-slate-700 bg-slate-900/30 flex flex-col pt-2 relative z-10 shrink-0">
+                <div className="w-16 border-r border-gray-100 bg-white flex flex-col relative z-10 shrink-0">
                     {SLOTS.map((time) => (
-                        <div key={time} className="flex-1 flex justify-center text-[10px] text-slate-500 items-start min-h-[40px] px-1 border-b border-slate-800/50">
+                        <div key={time} className="flex-1 flex justify-center text-[10px] text-gray-400 font-sans font-medium items-start px-1 border-b border-gray-100">
                             {time}
                         </div>
                     ))}
@@ -141,7 +196,7 @@ export default function LiveGrid() {
                         }
 
                         return (
-                            <div key={day} className="flex-1 relative border-r border-slate-800 last:border-0 h-full flex flex-col pt-2 bg-slate-950">
+                            <div key={day} className="flex-1 relative border-r border-gray-100 last:border-0 h-full flex flex-col bg-white">
 
                                 {/* Base Bit Cells & Hologram Overlays */}
                                 {SLOTS.map((_, slotIdx) => {
@@ -152,28 +207,26 @@ export default function LiveGrid() {
                                     return (
                                         <div
                                             key={`cell-${day}-${slotIdx}`}
-                                            className={`flex-1 min-h-[40px] border-b border-slate-800/30 flex items-center justify-center transition-all duration-300 relative
-                                                ${isColliding && isConflict ? 'bg-rose-950 shadow-[inset_0_0_20px_rgba(244,63,94,0.3)] border-y border-rose-900' : ''}
-                                            `}
+                                            className={`flex-1 border-b border-gray-100 flex items-center justify-center transition-all duration-300 relative`}
                                         >
                                             {/* Base Bit Indicator */}
-                                            <span className={`text-[10px] font-bold z-0 select-none
-                                                ${isBaseFilled ? 'text-indigo-900/50' : 'text-slate-800/20'}
+                                            <span className={`font-mono text-xs z-0 select-none
+                                                ${isBaseFilled ? 'text-gray-400' : 'text-gray-200'}
                                             `}>
                                                 {isBaseFilled ? '1' : '0'}
                                             </span>
 
                                             {/* Hologram / Testing Indicator */}
                                             {isEvalTesting && (
-                                                <div className={`absolute inset-0 border-2 rounded-sm m-[1px] flex items-center justify-center select-none shadow-sm z-30 transition-all duration-300
-                                                    ${isColliding && isConflict ? 'border-rose-500 bg-rose-500/20 text-rose-300 animate-pulse' :
-                                                        'border-amber-400 border-dashed bg-amber-500/10 text-amber-200'}
+                                                <div className={`absolute inset-0 border rounded-md m-[1px] flex items-center justify-center select-none shadow-sm z-30 transition-all duration-300
+                                                    ${isColliding && isConflict ? 'border-red-300 bg-red-50 text-red-600' :
+                                                        'border-amber-200 border-dashed bg-amber-50 text-amber-500'}
                                                 `}>
                                                     {/* Explain collision mathematically if it hits */}
                                                     {isColliding && isConflict ? (
-                                                        <span className="text-[10px] font-black tracking-widest bg-rose-950 px-1 rounded border border-rose-500">1&1</span>
+                                                        <span className="font-mono text-xs tracking-widest bg-red-100 px-1 rounded border border-red-300">1&1</span>
                                                     ) : (
-                                                        <span className="text-xl font-bold opacity-30">1</span>
+                                                        <span className="font-mono text-xs opacity-0">...</span>
                                                     )}
                                                 </div>
                                             )}
@@ -189,11 +242,11 @@ export default function LiveGrid() {
                                         return (
                                             <div
                                                 key={`chosen-${idx}-${matchIdx}-${day}`}
-                                                className="absolute left-1 right-1 rounded-md bg-emerald-500/20 border border-emerald-500/50 p-1 flex flex-col overflow-hidden text-emerald-100 shadow-md shadow-emerald-900/20 transition-all duration-300 z-20 backdrop-blur-sm"
-                                                style={pos}
+                                                className="absolute left-[2px] right-[2px] rounded-md border border-gray-200 p-1.5 flex flex-col justify-center overflow-hidden text-gray-900 shadow-sm transition-all duration-300 z-20"
+                                                style={{ ...pos, backgroundColor: getSoftColor(section.courseCode) }}
                                             >
-                                                <div className="text-[10px] font-sans font-bold tracking-wider opacity-80">{section.courseCode}</div>
-                                                <div className="text-[9px] opacity-60 font-mono">Sec {section.sectionNo}</div>
+                                                <div className="font-sans text-xs font-semibold tracking-tight truncate leading-none">{section.courseCode}</div>
+                                                <div className="font-mono text-[10px] text-gray-500 mt-0.5">Sec {section.sectionNo}</div>
                                             </div>
                                         );
                                     });
@@ -206,12 +259,12 @@ export default function LiveGrid() {
                                         const pos = getPositionStyles(dayMatch.startTime, dayMatch.endTime);
 
                                         // The big title block follows the hologram outline
-                                        let styleClasses = "absolute left-1 right-1 rounded-md p-1 flex flex-col overflow-hidden shadow-lg transition-all duration-200 z-40 backdrop-blur-md font-sans ";
+                                        let styleClasses = "absolute left-[2px] right-[2px] rounded-md p-1.5 flex flex-col overflow-hidden shadow-sm transition-all duration-200 z-40 backdrop-blur-sm font-sans border border-gray-200 ";
 
                                         if (isConflict) {
-                                            styleClasses += "bg-rose-900/40 border-l-[4px] border-rose-500 text-rose-100";
+                                            styleClasses += "bg-red-50 text-red-800";
                                         } else {
-                                            styleClasses += "bg-amber-900/20 border-l-[4px] border-amber-400 text-amber-100 opacity-90";
+                                            styleClasses += "bg-amber-50 text-amber-800";
                                         }
 
                                         return (
@@ -220,11 +273,11 @@ export default function LiveGrid() {
                                                 className={styleClasses}
                                                 style={pos}
                                             >
-                                                <div className="flex justify-between items-center w-full">
-                                                    <span className="text-[10px] font-bold tracking-wider">{evalBlock.courseCode}</span>
-                                                    {isConflict && <span className="text-[10px] bg-rose-600 rounded-sm px-1 font-mono">X</span>}
+                                                <div className="flex justify-between items-start w-full leading-none">
+                                                    <span className="font-sans text-xs font-semibold tracking-tight truncate">{evalBlock.courseCode}</span>
+                                                    {isConflict && <span className="font-mono text-xs bg-red-100 text-red-600 rounded px-1 border border-red-300">X</span>}
                                                 </div>
-                                                <div className="text-[9px] opacity-80 font-mono">Sec {evalBlock.sectionNo}</div>
+                                                <div className="font-sans text-[10px] opacity-80 mt-1">Sec {evalBlock.sectionNo}</div>
                                             </div>
                                         );
                                     });
@@ -233,6 +286,13 @@ export default function LiveGrid() {
                         );
                     })}
                 </div>
+            </div>
+
+            {/* Legend / Watermark */}
+            <div className="absolute bottom-2 left-4 z-50 pointer-events-none opacity-50">
+                <span className="text-[10px] text-gray-500 font-mono uppercase tracking-widest hidden sm:inline-block">
+                    COLORS DISTINGUISH UNIQUE COURSES • RED HIGHLIGHTS INDICATE BITMASK COLLISIONS
+                </span>
             </div>
         </div>
     );

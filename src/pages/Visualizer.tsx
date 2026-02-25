@@ -4,7 +4,9 @@ import ControlDeck from "../components/simulator/ControlDeck";
 import LiveGrid from "../components/simulator/LiveGrid";
 import CourseSelector from "../components/simulator/CourseSelector";
 import GraphTree from "../components/simulator/GraphTree";
-import { ChevronRight, ChevronLeft } from "lucide-react";
+import Navbar from "../components/layout/Navbar";
+import Footer from "../components/layout/Footer";
+import { ChevronLeft, Menu } from "lucide-react";
 
 export default function Visualizer() {
     const { isPlaying, step } = useSimulationStore();
@@ -22,65 +24,68 @@ export default function Visualizer() {
     }, [isPlaying, step, speedMultiplier]);
 
     return (
-        <div className="w-full h-screen bg-slate-950 text-slate-200 overflow-hidden flex font-sans">
+        <div className="w-full min-h-screen bg-[#FAFAFA] text-gray-900 flex flex-col font-sans overflow-y-auto custom-scrollbar">
 
-            {/* Sliding Sidebar for Course Selection */}
-            <div className={`transition-all duration-300 ease-in-out shrink-0 ${isSidebarOpen ? 'w-80' : 'w-0'} overflow-hidden h-full flex flex-col relative z-20 shadow-2xl shadow-black`}>
-                <div className="w-80 h-full">
-                    <CourseSelector />
-                </div>
-            </div>
+            {/* 100dvh Bounded Lab Workspace */}
+            <div className="w-full h-[100dvh] flex flex-col overflow-hidden shrink-0">
+                <Navbar />
 
-            {/* Main Application Area */}
-            <div className="flex-1 flex flex-col h-full min-w-0 relative">
-
-                {/* Header */}
-                <header className="h-14 border-b border-slate-800 bg-slate-900/50 flex items-center px-4 shrink-0 transition-colors gap-4">
-                    <button
-                        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-                        className="p-1.5 rounded-md hover:bg-slate-800 text-slate-400 hover:text-slate-200 transition-colors"
-                        title="Toggle Course Drawer"
-                    >
-                        {isSidebarOpen ? <ChevronLeft size={20} /> : <ChevronRight size={20} />}
-                    </button>
-
-                    <div className="flex items-center gap-3 border-l border-slate-700 pl-4">
-                        <div className="w-8 h-8 rounded-lg bg-indigo-600 flex items-center justify-center font-bold text-white shadow-lg shadow-indigo-500/20">
-                            YU
-                        </div>
-                        <h1 className="text-sm font-semibold tracking-wider text-slate-100">
-                            SYNC <span className="text-indigo-400">INFO</span> / ENGINE
-                        </h1>
-                    </div>
-                </header>
-
-                {/* Dashboard Grid */}
-                <main className="flex-1 grid grid-cols-12 grid-rows-6 gap-4 p-4 min-h-0 bg-slate-950">
-
-                    {/* Left Area: Live Grid */}
-                    <div className="col-span-8 row-span-4 rounded-xl border border-slate-800 bg-slate-900/40 relative overflow-hidden flex flex-col shadow-inner backdrop-blur-sm">
-                        <div className="flex-1 overflow-auto custom-scrollbar">
-                            <LiveGrid />
+                <main className="flex-1 flex overflow-hidden w-full relative">
+                    {/* Sliding Sidebar for Course Selection */}
+                    <div className={`transition-all duration-300 ease-in-out shrink-0 ${isSidebarOpen ? 'w-80 md:w-96' : 'w-0'} overflow-hidden h-full flex flex-col relative z-20 shadow-sm bg-white border-r border-gray-200`}>
+                        <div className="w-80 md:w-96 h-full overflow-hidden flex flex-col">
+                            <CourseSelector />
                         </div>
                     </div>
 
-                    {/* Right Area: Decision Tree */}
-                    <div className="col-span-4 row-span-6 rounded-xl border border-slate-800 bg-slate-900/40 relative overflow-hidden flex flex-col shadow-inner backdrop-blur-sm">
-                        <GraphTree />
-                    </div>
+                    {/* Main Application Area (Strictly Bounded) */}
+                    <div className="flex-1 flex flex-col h-full min-w-0 relative overflow-hidden">
 
-                    {/* Bottom Left Area: Control Deck */}
-                    <div className="col-span-8 row-span-2 rounded-xl border border-indigo-900/30 bg-indigo-950/20 relative overflow-hidden flex flex-col shadow-lg backdrop-blur-md">
-                        <div className="px-4 py-2 border-b border-indigo-900/30 bg-indigo-900/20 text-[10px] font-bold text-indigo-300 uppercase tracking-widest shrink-0">
-                            Control Deck
+                        {/* Quick Toolbar */}
+                        <div className="p-4 pb-0 flex items-center gap-4 shrink-0 mx-auto w-full max-w-[1600px]">
+                            <button
+                                onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+                                className="px-3 py-1.5 rounded-md bg-white shadow-sm border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors flex items-center gap-2 font-medium text-sm"
+                            >
+                                {isSidebarOpen ? <ChevronLeft size={18} /> : <Menu size={18} />}
+                                <span className="hidden sm:inline">{isSidebarOpen ? "Hide Courses" : "Show Courses"}</span>
+                            </button>
                         </div>
-                        <div className="flex-1 p-2 flex flex-col justify-center">
-                            <ControlDeck />
+
+                        {/* Dashboard Grid - Fills remaining height smoothly */}
+                        <div className="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 mx-auto w-full max-w-[1600px] min-h-0">
+
+                            {/* Left Column: Live Grid + Control Deck */}
+                            <div className="col-span-1 lg:col-span-8 flex flex-col gap-4 min-h-0">
+                                {/* Top Left Area: Live Grid */}
+                                <div className="flex-1 flex flex-col relative overflow-hidden bg-white rounded-lg shadow-sm border border-gray-200 min-h-0">
+                                    <div className="flex-1 overflow-auto custom-scrollbar p-2 min-h-0 relative">
+                                        <LiveGrid />
+                                    </div>
+                                </div>
+
+                                {/* Bottom Left Area: Control Deck */}
+                                <div className="shrink-0 h-fit flex flex-col relative overflow-hidden bg-white rounded-lg shadow-sm border border-gray-200">
+                                    <div className="px-4 py-3 border-b border-gray-100 text-xs font-semibold text-gray-500 uppercase tracking-wider shrink-0">
+                                        Control Deck
+                                    </div>
+                                    <div className="p-3">
+                                        <ControlDeck />
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Right Area: Decision Tree */}
+                            <div className="col-span-1 lg:col-span-4 flex flex-col relative overflow-hidden bg-white rounded-lg shadow-sm border border-gray-200 min-h-0 h-full">
+                                <GraphTree />
+                            </div>
                         </div>
                     </div>
-
                 </main>
             </div>
+
+            {/* Footer renders naturally below the 100dvh Lab section */}
+            <Footer className="w-full shrink-0 bg-[#FAFAFA]" />
         </div>
     );
 }

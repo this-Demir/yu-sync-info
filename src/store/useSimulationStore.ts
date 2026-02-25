@@ -37,8 +37,13 @@ interface SimulationStore {
     isPlaying: boolean;
     speedMultiplier: number; // 1x is normal speed
 
+    // Multi-Solution State
+    validSchedules: Section[][];
+    activeValidScheduleIndex: number;
+
     // Setup Actions
     setSections: (sections: Section[]) => void;
+    setCourses: (courses: CourseData[]) => void;
     addCourse: (course: CourseData) => void;
     removeCourse: (courseCode: string) => void;
     initializeSimulation: () => void;
@@ -49,6 +54,8 @@ interface SimulationStore {
     pause: () => void;
     step: () => void;
     reset: () => void;
+    instantCompute: () => void;
+    setActiveSchedule: (index: number) => void;
 }
 
 export const useSimulationStore = create<SimulationStore>((set, get) => ({
@@ -60,10 +67,16 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     activePathIds: [],
     isPlaying: false,
     speedMultiplier: 1.0,
+    validSchedules: [],
+    activeValidScheduleIndex: 0,
 
     setSections: (sections) => {
         set({ sections });
         get().reset();
+    },
+
+    setCourses: (courses) => {
+        set({ selectedCourses: courses });
     },
 
     addCourse: (course) => {
@@ -101,7 +114,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
                     set({ isPlaying: true });
                 }
             }
-        } else if (currentState?.step === "COMPLETE" || currentState?.step === "SUCCESS") {
+        } else if (currentState?.step === "COMPLETE") {
             return;
         } else {
             set({ isPlaying: true });
@@ -194,7 +207,6 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
                 }
             }
 
-            // On success find the chosen path and mark them exactly
             if (nextState.step === "SUCCESS" && newRoot) {
                 const findNode = (node: TreeNode, targetId: string): TreeNode | null => {
                     if (node.id === targetId) return node;
@@ -215,7 +227,11 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
                 }
             }
 
-            set({ treeRoot: newRoot, activePathIds: newActivePath });
+            set({
+                treeRoot: newRoot,
+                activePathIds: newActivePath,
+                validSchedules: nextState.foundSchedules || get().validSchedules,
+            });
 
         } else if (result.done) {
             set({ isPlaying: false });
@@ -247,7 +263,34 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
             currentState: firstStep.value ? firstStep.value : null,
             isPlaying: false,
             treeRoot: initialRoot,
-            activePathIds: ["root"]
+            activePathIds: ["root"],
+            validSchedules: [],
+            activeValidScheduleIndex: 0
         });
+    },
+
+    instantCompute: () => {
+        let { generator } = get();
+        if (!generator) {
+            get().reset();
+            generator = get().generator;
+            if (!generator) return;
+        }
+
+        set({ isPlaying: false });
+
+        // Loop until step is COMPLETE or the generator finishes
+        while (get().currentState?.step !== "COMPLETE") {
+            const currentGen = get().generator;
+            if (!currentGen) break;
+            get().step();
+        }
+    },
+
+    setActiveSchedule: (index) => {
+        const { validSchedules } = get();
+        if (index >= 0 && index < validSchedules.length) {
+            set({ activeValidScheduleIndex: index });
+        }
     }
 }));
