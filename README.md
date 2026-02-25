@@ -12,7 +12,14 @@ Looking for the actual schedule creator? Visit the official platform:
 * **Algorithm Simulation:** Watch the backtracking process step-by-step with play, pause, and speed controls.
 * **Bitmask Overlay:** See real-time bitwise AND operations directly on the timetable grid to understand conflict detection.
 * **State-Space Tree:** Visualize the decision tree, including successful paths and pruned branches (dead ends).
+* **Test Scenarios:** Instantly load pre-configured edge cases (cross-semester collisions, heavy lab blocks) to watch the engine handle complex backtracking.
 * **Core Parity:** Uses the same bitmasking logic and course data as the production environment.
+
+## Current Project Status
+
+The project features a minimalist, SaaS-inspired "Developer Lab" aesthetic. 
+
+**Note:** The core Algorithm Simulator is fully functional. However, the supplementary platform pages (Landing Page, Architecture Docs, and Media Kit) are currently structural mock-ups. They serve as placeholders for the upcoming documentation and branding content.
 
 ## Technical Stack
 
@@ -24,8 +31,8 @@ Looking for the actual schedule creator? Visit the official platform:
 
 ## Documentation
 
-For a deep dive into the architecture, bitmasking math, and design patterns used in this project, please refer to the `/docs` directory.
+For a deep dive into the architecture, bitmasking math, and design patterns used in this project, please refer to the `/docs` directory (content population in progress).
 
 ---
 
-Developed for the YU-Sync community.
+**Developed for the YU-Sync community.**
