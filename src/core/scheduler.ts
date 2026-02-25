@@ -207,17 +207,11 @@ export function generateSchedules(
       
       const isGhost = !!opt.section.isRetake; 
 
-      // 1. ÇAKIŞMA KONTROLÜ
-      // Eğer alttan DEĞİLSE, çakışma olup olmadığına bak.
-      // Ghost ise her türlü sığar (çakışmaları yoksay).
       if (!isGhost && !fits(w, opt)) {
         if (enableStats) pruned++; 
         continue;
       }
       
-      // 2. MASKE GÜNCELLEME
-      // Eğer ders alttan ise, zaman çizelgesini (maskeyi) GÜNCELLEME.
-      // Böylece sanki orada yokmuş gibi davranır ve diğer dersler üstüne gelebilir.
       const nextMask = isGhost ? w : place(w, opt);
 
       dfs(i + 1, nextMask, [...chosen, opt.section]);

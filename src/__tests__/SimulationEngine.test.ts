@@ -2,25 +2,88 @@ import { describe, it, expect } from "vitest";
 import { simulateScheduling, type SimulationState } from "../core/SimulationEngine";
 
 describe("SimulationEngine Generator", () => {
-    it("should yield INIT, SELECTING, BITMASK_CHECK, CONFLICT, BACKTRACKING, and SUCCESS", () => {
-        // Mock data designed to test conflict and successful backtracking.
-        // MATHA has 1 section (Monday morning).
-        // COMPA has 2 sections: 
-        //   - Sec 1 is Monday morning (will conflict with MATHA).
-        //   - Sec 2 is Tuesday morning (will succeed).
+
+    it("Valid Scenarios: should yield SUCCESS for a known, non-conflicting set of courses", () => {
         const mockSections = [
             {
-                courseCode: "COMPA",
+                courseCode: "COURSE_A",
                 sectionNo: 1,
                 days: [{ day: "Monday", startTime: "08:40", endTime: "10:40" }]
             },
             {
-                courseCode: "COMPA",
-                sectionNo: 2,
+                courseCode: "COURSE_B",
+                sectionNo: 1,
                 days: [{ day: "Tuesday", startTime: "08:40", endTime: "10:40" }]
+            }
+        ];
+
+        const gen = simulateScheduling(mockSections);
+        const yieldedStates: SimulationState[] = [];
+
+        for (const state of gen) {
+            yieldedStates.push(state);
+        }
+
+        const successState = yieldedStates.find(s => s.step === "SUCCESS");
+        expect(successState).toBeDefined();
+
+        const schedule = successState!.foundSchedules[0];
+        expect(schedule).toHaveLength(2);
+        expect(schedule.find(s => s.courseCode === "COURSE_A" && s.sectionNo === 1)).toBeDefined();
+        expect(schedule.find(s => s.courseCode === "COURSE_B" && s.sectionNo === 1)).toBeDefined();
+    });
+
+    it("Conflict Scenarios: should correctly yield CONFLICT and force a BACKTRACKING state", () => {
+        const mockSections = [
+            {
+                courseCode: "COURSE_A",
+                sectionNo: 1,
+                days: [{ day: "Monday", startTime: "08:40", endTime: "10:40" }]
             },
             {
-                courseCode: "MATHA",
+                courseCode: "COURSE_B",
+                sectionNo: 1,
+                days: [{ day: "Monday", startTime: "08:40", endTime: "10:40" }]
+            },
+            {
+                // This section works as a fallback so the process can succeed after backtracking
+                courseCode: "COURSE_B",
+                sectionNo: 2,
+                days: [{ day: "Tuesday", startTime: "08:40", endTime: "10:40" }]
+            }
+        ];
+
+        const gen = simulateScheduling(mockSections);
+        const yieldedStates: SimulationState[] = [];
+
+        for (const state of gen) {
+            yieldedStates.push(state);
+        }
+
+        const steps = yieldedStates.map(s => s.step);
+
+        // Assert we hit a conflict and backtracked
+        expect(steps).toContain("CONFLICT");
+        expect(steps).toContain("BACKTRACKING");
+
+        // The single successfully found schedule should contain COURSE_A 1 and COURSE_B 2
+        const successState = yieldedStates.find(s => s.step === "SUCCESS");
+        expect(successState).toBeDefined();
+        const schedule = successState!.foundSchedules[0];
+        expect(schedule).toHaveLength(2);
+        expect(schedule.find(s => s.courseCode === "COURSE_A" && s.sectionNo === 1)).toBeDefined();
+        expect(schedule.find(s => s.courseCode === "COURSE_B" && s.sectionNo === 2)).toBeDefined();
+    });
+
+    it("Exhaustion: should terminate safely when no valid schedules exist", () => {
+        const mockSections = [
+            {
+                courseCode: "COURSE_A",
+                sectionNo: 1,
+                days: [{ day: "Monday", startTime: "08:40", endTime: "10:40" }]
+            },
+            {
+                courseCode: "COURSE_B",
                 sectionNo: 1,
                 days: [{ day: "Monday", startTime: "08:40", endTime: "10:40" }]
             }
@@ -29,51 +92,36 @@ describe("SimulationEngine Generator", () => {
         const gen = simulateScheduling(mockSections);
         const yieldedStates: SimulationState[] = [];
 
-        // Let's iterate until the end
-        let result = gen.next();
-        while (!result.done) {
-            if (result.value) {
-                yieldedStates.push(result.value);
-            }
-            result = gen.next();
+        for (const state of gen) {
+            yieldedStates.push(state);
         }
 
-        // Extract sequence of steps
         const steps = yieldedStates.map(s => s.step);
 
-        // Initial state
-        expect(steps[0]).toBe("INIT"); // Ready state
-        expect(steps[1]).toBe("INIT"); // Sorted state
-
-        // We expect a SELECTING, BITMASK_CHECK, CONFLICT, BACKTRACKING because MATHA (Monday) + COMPA Sec 1 (Monday) collide
-        expect(steps).toContain("SELECTING");
-        expect(steps).toContain("BITMASK_CHECK");
+        // Engine will conflict both times
         expect(steps).toContain("CONFLICT");
         expect(steps).toContain("BACKTRACKING");
-        expect(steps).toContain("SUCCESS");
-        expect(steps).toContain("COMPLETE");
 
-        // The single successfully found schedule should contain MATHA 1 and COMPA 2
-        const successState = yieldedStates.find(s => s.step === "SUCCESS");
-        expect(successState).toBeDefined();
+        // But importantly, NEVER reach SUCCESS
+        expect(steps).not.toContain("SUCCESS");
 
-        const finalSchedule = successState!.foundSchedules[0];
-        expect(finalSchedule).toHaveLength(2);
-        expect(finalSchedule.find(s => s.courseCode === "MATHA" && s.sectionNo === 1)).toBeDefined();
-        expect(finalSchedule.find(s => s.courseCode === "COMPA" && s.sectionNo === 2)).toBeDefined();
+        // It must cleanly complete
+        expect(steps[steps.length - 1]).toBe("COMPLETE");
+
+        const completeState = yieldedStates.find(s => s.step === "COMPLETE");
+        expect(completeState!.foundSchedules).toHaveLength(0);
     });
 
     it("should handle empty inputs gracefully", () => {
         const gen = simulateScheduling([]);
+        const yieldedStates: SimulationState[] = [];
 
-        let result = gen.next();
-        expect((result.value as SimulationState).step).toBe("INIT");
+        for (const state of gen) {
+            yieldedStates.push(state);
+        }
 
-        result = gen.next();
-        expect((result.value as SimulationState).step).toBe("COMPLETE");
-        expect(result.done).toBe(false);
-
-        result = gen.next();
-        expect(result.done).toBe(true);
+        const steps = yieldedStates.map(s => s.step);
+        expect(steps[0]).toBe("INIT");
+        expect(steps[1]).toBe("COMPLETE");
     });
 });
