@@ -1,6 +1,6 @@
 # YU-Sync Info & Algorithm Visualizer
 
-An interactive educational platform designed to visualize the scheduling engine behind **YU-Sync**. This project demonstrates how bitmasking and backtracking algorithms work together to generate conflict-free university schedules.
+An interactive educational platform designed to visualize the scheduling engine behind **YU-Sync**. This project demonstrates how zero-allocation bitmasking and Depth-First Search (DFS) backtracking algorithms work together to generate conflict-free university schedules in real-time.
 
 ## Live Application
 
@@ -9,29 +9,29 @@ Looking for the actual schedule creator? Visit the official platform:
 
 ## Key Features
 
-* **Algorithm Simulation:** Watch the backtracking process step-by-step with play, pause, and speed controls.
-* **Bitmask Overlay:** See real-time bitwise AND operations directly on the timetable grid to understand conflict detection.
-* **State-Space Tree:** Visualize the decision tree, including successful paths and pruned branches (dead ends).
-* **Test Scenarios:** Instantly load pre-configured edge cases (cross-semester collisions, heavy lab blocks) to watch the engine handle complex backtracking.
-* **Core Parity:** Uses the same bitmasking logic and course data as the production environment.
-
-## Current Project Status
-
-The project features a minimalist, SaaS-inspired "Developer Lab" aesthetic. 
-
-**Note:** The core Algorithm Simulator is fully functional. However, the supplementary platform pages (Landing Page, Architecture Docs, and Media Kit) are currently structural mock-ups. They serve as placeholders for the upcoming documentation and branding content.
+* **Algorithm Simulation:** Watch the DFS backtracking process step-by-step with play, pause, and speed controls.
+* **Zero-Allocation Bitmasking:** See real-time bitwise `AND` operations directly on the timetable grid to understand hardware-level conflict detection.
+* **State-Space Tree:** Visualize the decision tree, including successful paths and aggressively pruned branches.
+* **Interactive Whitepaper:** A fully integrated, academic-grade documentation page detailing the mathematics, state-space traversal, and architectural patterns.
+* **Live Parity Benchmarking:** Run real-time execution benchmarks in the browser to prove 100% deterministic equality between the synchronous production engine and the asynchronous visualizer.
+* **Test Scenarios:** Instantly load pre-configured edge cases (cross-semester collisions, heavy lab blocks) to watch the engine handle complex constraints.
 
 ## Technical Stack
 
 * **Framework:** React + Vite
 * **Language:** TypeScript
 * **State Management:** Zustand (Observer Pattern)
+* **Architecture:** Generator Pattern (`function*`) for state freezing and stepping.
 * **Styling:** Tailwind CSS v3
-* **Testing:** Vitest
+* **Testing:** Vitest (Featuring mathematical core parity verification and scoped coverage).
 
-## Documentation
+## Documentation & Architecture
 
-For a deep dive into the architecture, bitmasking math, and design patterns used in this project, please refer to the `/docs` directory (content population in progress).
+The project features a minimalist, SaaS-inspired "Developer Lab" aesthetic. 
+
+For a deep dive into the architecture, Boolean algebra, and design patterns used in this project, please explore the interactive **Docs** route within the application. 
+
+*(Note: The core Algorithm Simulator and Architecture Docs are fully functional and populated. The supplementary Media Kit and Landing Page serve as structural placeholders for future branding).*
 
 ---
 
