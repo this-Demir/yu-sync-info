@@ -7,9 +7,19 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
-node_modules
+# Dependencies
+node_modules/
+
+# Build output
 dist
 dist-ssr
+
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Local config
 *.local
 
 # Editor directories and files
@@ -23,8 +33,10 @@ dist-ssr
 *.sln
 *.sw?
 
-
-/node_modules
-node_modules/
-
+# Test coverage
 coverage/
+
+# Project-specific
+Antigravity/
+.claude
+CLAUDE.md
