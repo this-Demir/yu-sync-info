@@ -16,7 +16,7 @@ export default function Visualizer() {
     // Auto-step logic
     useEffect(() => {
         if (!isPlaying) return;
-        const intervalMs = Math.max(50, 500 / speedMultiplier);
+        const intervalMs = Math.round((1 - speedMultiplier) * 1500);
         const timerId = setInterval(() => {
             step();
         }, intervalMs);

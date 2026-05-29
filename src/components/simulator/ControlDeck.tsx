@@ -85,13 +85,15 @@ export default function ControlDeck() {
                 <div className="flex flex-col gap-1 w-48 bg-white p-2.5 rounded-md border border-gray-200 shadow-sm">
                     <div className="flex justify-between items-center px-1">
                         <span className="font-mono text-[10px] text-gray-500 uppercase tracking-widest">Speed</span>
-                        <span className="font-mono text-[10px] text-gray-700">{speedMultiplier.toFixed(1)}x</span>
+                        <span className="font-mono text-[10px] text-gray-700">
+                            {speedMultiplier >= 1 ? "max" : `${Math.round(speedMultiplier * 100)}%`}
+                        </span>
                     </div>
                     <input
                         type="range"
-                        min="0.1"
-                        max="10.0"
-                        step="0.1"
+                        min="0"
+                        max="1"
+                        step="0.01"
                         value={speedMultiplier}
                         onChange={(e) => setSpeedMultiplier(parseFloat(e.target.value))}
                         className="w-full accent-[#004B87] cursor-pointer h-1.5 bg-slate-100 rounded-md appearance-none"

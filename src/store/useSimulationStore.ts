@@ -35,7 +35,7 @@ interface SimulationStore {
 
     // Playback State
     isPlaying: boolean;
-    speedMultiplier: number; // 1x is normal speed
+    speedMultiplier: number; // 0 = slowest (1500ms/step), 1 = no delay
 
     // Multi-Solution State
     validSchedules: Section[][];
@@ -66,7 +66,7 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     treeRoot: null,
     activePathIds: [],
     isPlaying: false,
-    speedMultiplier: 1.0,
+    speedMultiplier: 0.5,
     validSchedules: [],
     activeValidScheduleIndex: 0,
 

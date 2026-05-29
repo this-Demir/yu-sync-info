@@ -74,15 +74,15 @@ export default function CourseSelector() {
                 {/* Test Scenarios Quick Load */}
                 <div className="mb-4">
                     <div className="text-[10px] uppercase font-bold text-gray-400 tracking-wider mb-2">Test Scenarios</div>
-                    <div className="flex gap-2 overflow-x-auto custom-scrollbar pb-2">
+                    <div className="grid grid-cols-2 gap-2">
                         {TEST_SCENARIOS.map(scen => (
                             <button
                                 key={scen.label}
                                 onClick={() => loadScenario(scen.codes)}
-                                title={scen.note}
-                                className="px-2 py-1 bg-gray-50 border border-gray-200 hover:border-gray-300 text-gray-700 text-[10px] font-semibold rounded-md whitespace-nowrap transition-colors"
+                                className="text-left px-3 py-2.5 bg-gray-50 border border-gray-200 hover:border-gray-300 hover:bg-white rounded-lg transition-colors group"
                             >
-                                {scen.label}
+                                <p className="text-[11px] font-semibold text-gray-800 leading-tight group-hover:text-gray-900">{scen.label}</p>
+                                <p className="text-[10px] text-gray-400 mt-0.5 leading-tight">{scen.note}</p>
                             </button>
                         ))}
                     </div>

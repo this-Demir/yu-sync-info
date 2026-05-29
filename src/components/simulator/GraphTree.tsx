@@ -7,11 +7,10 @@ export default function GraphTree() {
     const { treeRoot, currentState, validSchedules, activeValidScheduleIndex, activePathIds, isPlaying } = useSimulationStore();
     const scrollRef = useRef<HTMLDivElement>(null);
 
-    // Auto-pan / scroll to rightmost and bottom when tree changes
+    // Auto-scroll to bottom as tree grows downward
     useEffect(() => {
         if (scrollRef.current && isPlaying) {
             scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-            scrollRef.current.scrollLeft = scrollRef.current.scrollWidth;
         }
     }, [treeRoot, currentState, isPlaying]);
 
