@@ -11,12 +11,12 @@ export default function Navbar() {
                 {/* Left Side (Breadcrumbs) */}
                 <div className="flex items-center gap-2 text-sm cursor-pointer" onClick={() => navigate('landing')}>
                     <img
-                        src="/logo-2.webp"
-                        alt="YU-Sync logo"
-                        width="24"
-                        height="24"
+                        src="/yu-sync-media/blue-logo-bg-removed.png"
+                        alt="YU-Sync"
+                        width="22"
+                        height="22"
                         fetchPriority="high"
-                        className="h-6 w-6 object-contain"
+                        className="h-[22px] w-[22px] object-contain opacity-90"
                     />
                     <span className="text-gray-300">/</span>
                     <span className="font-mono text-gray-600 hover:text-gray-900 transition-colors">yu-sync-info</span>
@@ -48,9 +48,6 @@ export default function Navbar() {
 
                 {/* Right Side */}
                 <div className="flex items-center gap-4">
-                    <div className="hidden sm:flex items-center gap-1.5 px-2 py-1 rounded bg-gray-50 border border-gray-200 text-xs text-gray-400 font-mono">
-                        <span>⌘</span><span>K</span>
-                    </div>
                     <a
                         href="https://yu-sync.com"
                         target="_blank"
