@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import { generateSchedules } from "../core/scheduler";
-import { simulateScheduling } from "../core/SimulationEngine";
+import { simulateScheduling, type SimulationStats } from "../core/SimulationEngine";
 import type { Section } from "../core/types";
 import courseData from "../data/yu_sync_test_courses.json";
 
@@ -27,6 +27,7 @@ describe("Core Engine Parity Verification", () => {
 
         let simNodes = 0;
         let simPruned = 0;
+        let simStats: SimulationStats | null = null;
 
         for (const state of gen) {
             if (state.step === "SELECTING") {
@@ -37,6 +38,7 @@ describe("Core Engine Parity Verification", () => {
             }
             if (state.step === "COMPLETE") {
                 simulatedSchedules = state.foundSchedules;
+                simStats = state.stats;
             }
         }
         const simTimeMs = performance.now() - t0;
@@ -78,6 +80,18 @@ describe("Core Engine Parity Verification", () => {
         // Assert that they mathematically explored the exact same tree structure
         expect(simNodes).toEqual(originalStats.nodes);
         expect(simPruned).toEqual(originalStats.pruned);
+
+        // The simulation engine's own counters must agree with the yield stream
+        // it produced. If these diverge, a yield was added, removed or moved
+        // relative to the counter it is supposed to accompany.
+        expect(simStats).not.toBeNull();
+        expect(simStats!.nodes).toEqual(simNodes);
+        expect(simStats!.pruned).toEqual(simPruned);
+        expect(simStats!.solutionCount).toEqual(simulatedSchedules.length);
+
+        // Instrumentation parity: identical work, not merely identical output.
+        expect(simStats!.conflictChecks).toEqual(originalStats.conflictChecks);
+        expect(simStats!.depthReached).toEqual(originalStats.depthReached);
     }
 
     it("Scenario 1: Software Eng (Year 2) - wide-branching tree", () => {

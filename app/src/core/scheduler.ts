@@ -78,6 +78,7 @@ export interface ScheduleStats {
   depthReached: number; // Maximum depth reached
   timeMs: number;       // Elapsed time (ms)
   solutionCount: number; // Number of solutions found
+  conflictChecks: number; // Number of (dayMask & sectionMask) evaluations
 }
 
 
@@ -86,7 +87,7 @@ export type SchedulerResult = {
   stats: ScheduleStats;
 };
 
-const EMPTY_STATS: ScheduleStats = { nodes: 0, pruned: 0, depthReached: 0, timeMs: 0, solutionCount: 0 };
+const EMPTY_STATS: ScheduleStats = { nodes: 0, pruned: 0, depthReached: 0, timeMs: 0, solutionCount: 0, conflictChecks: 0 };
 
 export function generateSchedules(
   sectionsInput: any[],
@@ -161,9 +162,10 @@ export function generateSchedules(
   const safeMaxResults = Math.max(0, Math.floor(Number.isFinite(maxResults as any) ? (maxResults as number) : 0));
   
 
-  let nodes = 0; 
+  let nodes = 0;
   let pruned = 0;
   let maxDepth = 0;
+  let conflictChecks = 0;
 
 
   const timeUp = () => {
@@ -177,6 +179,7 @@ export function generateSchedules(
 
   function fits(weekMask: WeekMask, option: { masks: { day: keyof WeekMask; mask: number }[] }): boolean {
     for (const { day, mask } of option.masks) {
+      if (enableStats) conflictChecks++;
       if ((weekMask[day] & mask) !== 0) return false;
     }
     return true;
@@ -232,7 +235,8 @@ export function generateSchedules(
       pruned,
       depthReached: maxDepth,
       timeMs: parseFloat((t1 - t0).toFixed(2)),
-      solutionCount: results.length
+      solutionCount: results.length,
+      conflictChecks
     };
   }
 

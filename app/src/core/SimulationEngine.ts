@@ -69,6 +69,20 @@ export type SimulationStepType =
     | "SUCCESS"
     | "COMPLETE";
 
+/**
+ * Metrics mirroring `ScheduleStats` in scheduler.ts, incremented at the exact
+ * same points in the traversal. `nodes` and `pruned` are what EngineParity
+ * asserts against, so these counters double as an in-engine parity witness.
+ */
+export interface SimulationStats {
+    nodes: number;
+    pruned: number;
+    depthReached: number;
+    timeMs: number;
+    solutionCount: number;
+    conflictChecks: number;
+}
+
 export interface SimulationState {
     step: SimulationStepType;
     currentCourseIndex?: number;
@@ -78,6 +92,9 @@ export interface SimulationState {
     chosenSections: Section[];
     foundSchedules: Section[][];
     message: string;
+    /** Running metrics as of this step. Carried on every yield so the
+     *  visualizer can export them mid-run, not only at COMPLETE. */
+    stats: SimulationStats;
 }
 
 export function* simulateScheduling(
@@ -89,14 +106,30 @@ export function* simulateScheduling(
     const foundSchedules: Section[][] = [];
     const baseState = { currentMask: emptyWeekMask(), chosenSections: [], foundSchedules };
 
+    const t0 = typeof performance !== "undefined" ? performance.now() : Date.now();
+    let nodes = 0;
+    let pruned = 0;
+    let maxDepth = 0;
+    let conflictChecks = 0;
+
+    const snapshot = (): SimulationStats => ({
+        nodes,
+        pruned,
+        depthReached: maxDepth,
+        timeMs: (typeof performance !== "undefined" ? performance.now() : Date.now()) - t0,
+        solutionCount: foundSchedules.length,
+        conflictChecks
+    });
+
     yield {
         step: "INIT",
         message: `Initializing scheduling with ${sections.length} valid sections.`,
-        ...baseState
+        ...baseState,
+        stats: snapshot()
     };
 
     if (sections.length === 0) {
-        yield { step: "COMPLETE", message: "No sections provided.", ...baseState };
+        yield { step: "COMPLETE", message: "No sections provided.", ...baseState, stats: snapshot() };
         return;
     }
 
@@ -109,7 +142,7 @@ export function* simulateScheduling(
     const courses = Array.from(grouped.keys());
 
     if (courses.length === 0) {
-        yield { step: "COMPLETE", message: "No courses found after grouping.", ...baseState };
+        yield { step: "COMPLETE", message: "No courses found after grouping.", ...baseState, stats: snapshot() };
         return;
     }
 
@@ -132,12 +165,13 @@ export function* simulateScheduling(
     });
 
     if (groupedMasked.some(options => (options?.length ?? 0) === 0)) {
-        yield { step: "COMPLETE", message: "Some courses have no valid sections. Impossible to schedule.", ...baseState };
+        yield { step: "COMPLETE", message: "Some courses have no valid sections. Impossible to schedule.", ...baseState, stats: snapshot() };
         return;
     }
 
     function fits(weekMask: WeekMask, option: Masked): boolean {
         for (const { day, mask } of option.masks) {
+            conflictChecks++;
             if ((weekMask[day] & mask) !== 0) return false;
         }
         return true;
@@ -152,10 +186,13 @@ export function* simulateScheduling(
     yield {
         step: "INIT",
         message: `Algorithm ready. Courses to schedule: ${courses.join(", ")}`,
-        ...baseState
+        ...baseState,
+        stats: snapshot()
     };
 
     function* dfs(i: number, w: WeekMask, chosen: Section[]): Generator<SimulationState, void, unknown> {
+        if (i > maxDepth) maxDepth = i;
+
         if (foundSchedules.length >= maxResults) return;
 
         if (i === groupedMasked.length) {
@@ -166,7 +203,8 @@ export function* simulateScheduling(
                 currentCourseIndex: i,
                 currentMask: w,
                 chosenSections: [...chosen],
-                foundSchedules
+                foundSchedules,
+                stats: snapshot()
             };
             return;
         }
@@ -175,6 +213,7 @@ export function* simulateScheduling(
         const options = groupedMasked[i] ?? [];
 
         for (const opt of options) {
+            nodes++;
             const isGhost = !!opt.section.isRetake;
 
             yield {
@@ -185,7 +224,8 @@ export function* simulateScheduling(
                 evaluatingSection: opt.section,
                 currentMask: w,
                 chosenSections: [...chosen],
-                foundSchedules
+                foundSchedules,
+                stats: snapshot()
             };
 
             yield {
@@ -196,10 +236,12 @@ export function* simulateScheduling(
                 evaluatingSection: opt.section,
                 currentMask: w,
                 chosenSections: [...chosen],
-                foundSchedules
+                foundSchedules,
+                stats: snapshot()
             };
 
             if (!isGhost && !fits(w, opt)) {
+                pruned++;
                 yield {
                     step: "CONFLICT",
                     message: `Conflict detected for ${currentCourseCode} - Section ${opt.section.sectionNo}!`,
@@ -208,7 +250,8 @@ export function* simulateScheduling(
                     evaluatingSection: opt.section,
                     currentMask: w,
                     chosenSections: [...chosen],
-                    foundSchedules
+                    foundSchedules,
+                    stats: snapshot()
                 };
 
                 yield {
@@ -219,7 +262,8 @@ export function* simulateScheduling(
                     evaluatingSection: opt.section,
                     currentMask: w,
                     chosenSections: [...chosen],
-                    foundSchedules
+                    foundSchedules,
+                    stats: snapshot()
                 };
                 continue;
             }
@@ -239,7 +283,8 @@ export function* simulateScheduling(
                 evaluatingSection: opt.section,
                 currentMask: w,
                 chosenSections: [...chosen],
-                foundSchedules
+                foundSchedules,
+                stats: snapshot()
             };
         }
     }
@@ -249,6 +294,7 @@ export function* simulateScheduling(
     yield {
         step: "COMPLETE",
         message: `Simulation complete. Total schedules found: ${foundSchedules.length}.`,
-        ...baseState
+        ...baseState,
+        stats: snapshot()
     };
 }

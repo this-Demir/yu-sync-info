@@ -1,6 +1,7 @@
 import { create } from "zustand";
 import { simulateScheduling, type SimulationState } from "../core/SimulationEngine";
-import type { Section } from "../core/types";
+import { emptyWeekMask, weekMaskForDays } from "../core/time";
+import type { DayName, Section } from "../core/types";
 
 export interface CourseData {
     courseCode: string;
@@ -18,6 +19,12 @@ export interface TreeNode {
     parentId: string | null;
     children: TreeNode[];
     level: number;
+    /** Running mask W when this node was reached, before placing its section. */
+    maskBefore: Record<DayName, number>;
+    /** The candidate section's own mask, the operand of the conflict test. */
+    sectionMask: Record<DayName, number>;
+    /** Whether this section is exempt from the conflict test. */
+    isGhost: boolean;
 }
 
 interface SimulationStore {
@@ -150,7 +157,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
                     status: "SUCCEEDED",
                     parentId: null,
                     children: [],
-                    level: -1
+                    level: -1,
+                    maskBefore: emptyWeekMask(),
+                    sectionMask: emptyWeekMask(),
+                    isGhost: false
                 };
                 newActivePath = ["root"];
             }
@@ -176,7 +186,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
                     let targetNode = parentNode.children.find(c => c.id === nodeId);
 
                     if (!targetNode && nextState.step === "SELECTING") {
-                        // Create node
+                        // Create node. The masks are captured here, at SELECTING,
+                        // because currentMask is still W at that point, before the
+                        // section is placed. That is the operand pair the conflict
+                        // test uses and the pair the loop invariant is stated over.
                         targetNode = {
                             id: nodeId,
                             courseCode: evalSec.courseCode,
@@ -184,7 +197,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
                             status: "EVALUATING",
                             parentId: parentId,
                             children: [],
-                            level
+                            level,
+                            maskBefore: { ...nextState.currentMask },
+                            sectionMask: weekMaskForDays(evalSec.days),
+                            isGhost: !!evalSec.isRetake
                         };
                         parentNode.children.push(targetNode);
                         newActivePath[level + 1] = nodeId;
@@ -255,7 +271,10 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
             status: "SUCCEEDED",
             parentId: null,
             children: [],
-            level: -1
+            level: -1,
+            maskBefore: emptyWeekMask(),
+            sectionMask: emptyWeekMask(),
+            isGhost: false
         };
 
         set({

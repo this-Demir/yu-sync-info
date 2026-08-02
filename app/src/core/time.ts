@@ -47,3 +47,33 @@ export function emptyWeekMask() {
     Saturday: 0, Sunday: 0,
   } as Record<DayName, number>;
 }
+
+/**
+ * Per-day masks for one section's meetings.
+ *
+ * Used by the visualizer to annotate each node of the state-space tree with
+ * the mask being tested there, so that conditions 2 and 3 of the loop invariant
+ * in docs/04-algorithm.md can be checked against what is on screen.
+ *
+ * The engines do not call this. They build their masks internally during
+ * preprocessing, and this recomputes the same values for display without
+ * reaching into either engine's private state.
+ */
+export function weekMaskForDays(
+  days: { day: string; startTime: string; endTime: string }[]
+): Record<DayName, number> {
+  const mask = emptyWeekMask();
+  for (const d of days) {
+    const day = d.day as DayName;
+    if (day in mask) mask[day] |= sectionMaskForRange(d.startTime, d.endTime);
+  }
+  return mask;
+}
+
+/** Compact rendering of a week mask, listing only the days that are occupied. */
+export function formatWeekMask(mask: Record<DayName, number>): string {
+  const parts = DAYS
+    .filter(d => (mask[d] ?? 0) !== 0)
+    .map(d => `${d.slice(0, 2)} ${mask[d]}`);
+  return parts.length === 0 ? "empty" : parts.join("  ");
+}
