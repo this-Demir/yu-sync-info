@@ -1,0 +1,51 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="760" height="420" viewBox="0 0 760 420" role="img" aria-label="Figure 3. Cost of one conflict check against universe size">
+<title>Figure 3. Cost of one conflict check against universe size</title>
+<rect width="760" height="420" fill="#ffffff"/>
+<g font-family="Segoe UI, Helvetica, Arial, sans-serif">
+<text x="78" y="28" font-size="15" font-weight="700" fill="#111827">Figure 3. Cost of one conflict check against universe size</text>
+<text x="78" y="47" font-size="11.5" fill="#6b7280">Worst case (disjoint) operands, minimum of 7 trials of 200,000 calls</text>
+<line x1="78" y1="328" x2="736" y2="328" stroke="#e5e7eb" stroke-width="1"/>
+<text x="69" y="331.5" font-size="10.5" fill="#6b7280" text-anchor="end">1.0</text>
+<line x1="78" y1="263" x2="736" y2="263" stroke="#e5e7eb" stroke-width="1"/>
+<text x="69" y="266.5" font-size="10.5" fill="#6b7280" text-anchor="end">10</text>
+<line x1="78" y1="198" x2="736" y2="198" stroke="#e5e7eb" stroke-width="1"/>
+<text x="69" y="201.5" font-size="10.5" fill="#6b7280" text-anchor="end">100</text>
+<line x1="78" y1="133" x2="736" y2="133" stroke="#e5e7eb" stroke-width="1"/>
+<text x="69" y="136.5" font-size="10.5" fill="#6b7280" text-anchor="end">1.00k</text>
+<line x1="78" y1="68" x2="736" y2="68" stroke="#e5e7eb" stroke-width="1"/>
+<text x="69" y="71.5" font-size="10.5" fill="#6b7280" text-anchor="end">10.0k</text>
+<line x1="213.21" y1="68" x2="213.21" y2="328" stroke="#e5e7eb" stroke-width="1"/>
+<text x="213.21" y="345" font-size="10.5" fill="#6b7280" text-anchor="middle">100</text>
+<line x1="486.44" y1="68" x2="486.44" y2="328" stroke="#e5e7eb" stroke-width="1"/>
+<text x="486.44" y="345" font-size="10.5" fill="#6b7280" text-anchor="middle">1.00k</text>
+<line x1="78" y1="328" x2="736" y2="328" stroke="#111827" stroke-width="1.25"/>
+<line x1="78" y1="68" x2="78" y2="328" stroke="#111827" stroke-width="1.25"/>
+<text x="407" y="366" font-size="11.5" font-weight="600" fill="#111827" text-anchor="middle">Slots in the universe (log scale)</text>
+<text x="18" y="198" font-size="11.5" font-weight="600" fill="#111827" text-anchor="middle" transform="rotate(-90 18 198)">Nanoseconds per check (log scale)</text>
+<path d="M78 230.08 L160.25 208.69 L242.5 195.33 L324.75 178.31 L407 158.56 L489.25 141.28 L571.5 122.07 L653.75 102.75 L736 83.28" fill="none" stroke="#dc2626" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="78" cy="230.08" r="2.6" fill="#dc2626"/>
+<circle cx="160.25" cy="208.69" r="2.6" fill="#dc2626"/>
+<circle cx="242.5" cy="195.33" r="2.6" fill="#dc2626"/>
+<circle cx="324.75" cy="178.31" r="2.6" fill="#dc2626"/>
+<circle cx="407" cy="158.56" r="2.6" fill="#dc2626"/>
+<circle cx="489.25" cy="141.28" r="2.6" fill="#dc2626"/>
+<circle cx="571.5" cy="122.07" r="2.6" fill="#dc2626"/>
+<circle cx="653.75" cy="102.75" r="2.6" fill="#dc2626"/>
+<circle cx="736" cy="83.28" r="2.6" fill="#dc2626"/>
+<path d="M78 263.8 L160.25 255.27 L242.5 250.67 L324.75 252.51 L407 242.54 L489.25 228.49 L571.5 210.06 L653.75 195.09 L736 178.18" fill="none" stroke="#2563eb" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+<circle cx="78" cy="263.8" r="2.6" fill="#2563eb"/>
+<circle cx="160.25" cy="255.27" r="2.6" fill="#2563eb"/>
+<circle cx="242.5" cy="250.67" r="2.6" fill="#2563eb"/>
+<circle cx="324.75" cy="252.51" r="2.6" fill="#2563eb"/>
+<circle cx="407" cy="242.54" r="2.6" fill="#2563eb"/>
+<circle cx="489.25" cy="228.49" r="2.6" fill="#2563eb"/>
+<circle cx="571.5" cy="210.06" r="2.6" fill="#2563eb"/>
+<circle cx="653.75" cy="195.09" r="2.6" fill="#2563eb"/>
+<circle cx="736" cy="178.18" r="2.6" fill="#2563eb"/>
+<line x1="78" y1="56" x2="94" y2="56" stroke="#dc2626" stroke-width="2.5"/>
+<text x="99" y="59.5" font-size="10.5" fill="#111827">Slot-wise scan</text>
+<line x1="190.6" y1="56" x2="206.6" y2="56" stroke="#2563eb" stroke-width="2.5"/>
+<text x="211.6" y="59.5" font-size="10.5" fill="#111827">Word-wise AND</text>
+<text x="78" y="386" font-size="10" fill="#6b7280">Both lines rise with the universe size. The bitmask encoding buys a large constant factor, not a change of complexity</text>
+<text x="78" y="399" font-size="10" fill="#6b7280">class.</text>
+</g></svg>

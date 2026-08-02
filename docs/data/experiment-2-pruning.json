@@ -1,0 +1,207 @@
+{
+  "experiment": "Pruning effectiveness",
+  "claim": "Bitmask DFS performs a small fraction of the conflict checks that uninformed enumeration performs, and returns exactly the same solution set.",
+  "note": "Both methods count one conflict check as one AND of one day mask, and both iterate only the days a section meets. checkReduction is therefore the unit-fair comparison. Node counts and complete-assignment counts are reported alongside but are different units and are not compared directly.",
+  "config": {
+    "minCourses": 2,
+    "maxCourses": 11,
+    "sectionsPerCourse": 4,
+    "placementPool": 18,
+    "instancesPerPoint": 5,
+    "baseSeed": 20260802
+  },
+  "deterministic": [
+    {
+      "courses": 2,
+      "meanDensity": 0.05,
+      "naiveCombinations": 16,
+      "searchTreeSize": 20,
+      "meanNaiveConflictChecks": 16,
+      "meanDfsConflictChecks": 20,
+      "meanDfsNodes": 20,
+      "meanSolutions": 15.2,
+      "checkReduction": -0.25,
+      "nodeReduction": 0,
+      "agree": true,
+      "instances": 5
+    },
+    {
+      "courses": 3,
+      "meanDensity": 0.058333333333333334,
+      "naiveCombinations": 64,
+      "searchTreeSize": 84,
+      "meanNaiveConflictChecks": 179.2,
+      "meanDfsConflictChecks": 79.2,
+      "meanDfsNodes": 79.2,
+      "meanSolutions": 52.8,
+      "checkReduction": 0.5580357142857143,
+      "nodeReduction": 0.05714285714285716,
+      "agree": true,
+      "instances": 5
+    },
+    {
+      "courses": 4,
+      "meanDensity": 0.08125,
+      "naiveCombinations": 256,
+      "searchTreeSize": 340,
+      "meanNaiveConflictChecks": 1205.6,
+      "meanDfsConflictChecks": 268.8,
+      "meanDfsNodes": 268.8,
+      "meanSolutions": 145,
+      "checkReduction": 0.7770404777704047,
+      "nodeReduction": 0.2094117647058823,
+      "agree": true,
+      "instances": 5
+    },
+    {
+      "courses": 5,
+      "meanDensity": 0.0725,
+      "naiveCombinations": 1024,
+      "searchTreeSize": 1364,
+      "meanNaiveConflictChecks": 8147,
+      "meanDfsConflictChecks": 1018.4,
+      "meanDfsNodes": 1018.4,
+      "meanSolutions": 466.4,
+      "checkReduction": 0.8749969313857862,
+      "nodeReduction": 0.25337243401759535,
+      "agree": true,
+      "instances": 5
+    },
+    {
+      "courses": 6,
+      "meanDensity": 0.07333333333333333,
+      "naiveCombinations": 4096,
+      "searchTreeSize": 5460,
+      "meanNaiveConflictChecks": 38555.2,
+      "meanDfsConflictChecks": 2859.2,
+      "meanDfsNodes": 2859.2,
+      "meanSolutions": 1156.6,
+      "checkReduction": 0.9258413910445283,
+      "nodeReduction": 0.47633699633699633,
+      "agree": true,
+      "instances": 5
+    },
+    {
+      "courses": 7,
+      "meanDensity": 0.0732142857142857,
+      "naiveCombinations": 16384,
+      "searchTreeSize": 21844,
+      "meanNaiveConflictChecks": 171259,
+      "meanDfsConflictChecks": 7139.2,
+      "meanDfsNodes": 7139.2,
+      "meanSolutions": 2702.8,
+      "checkReduction": 0.9583134317028594,
+      "nodeReduction": 0.6731734114631021,
+      "agree": true,
+      "instances": 5
+    },
+    {
+      "courses": 8,
+      "meanDensity": 0.0763392857142857,
+      "naiveCombinations": 65536,
+      "searchTreeSize": 87380,
+      "meanNaiveConflictChecks": 714533.6,
+      "meanDfsConflictChecks": 17049.6,
+      "meanDfsNodes": 17049.6,
+      "meanSolutions": 5144.2,
+      "checkReduction": 0.9761388407766969,
+      "nodeReduction": 0.8048798352025636,
+      "agree": true,
+      "instances": 5
+    },
+    {
+      "courses": 9,
+      "meanDensity": 0.09756944444444444,
+      "naiveCombinations": 262144,
+      "searchTreeSize": 349524,
+      "meanNaiveConflictChecks": 2790584,
+      "meanDfsConflictChecks": 23872.8,
+      "meanDfsNodes": 23872.8,
+      "meanSolutions": 4293.6,
+      "checkReduction": 0.9914452315357646,
+      "nodeReduction": 0.9316991107906754,
+      "agree": true,
+      "instances": 5
+    },
+    {
+      "courses": 10,
+      "meanDensity": 0.07972222222222222,
+      "naiveCombinations": 1048576,
+      "searchTreeSize": 1398100,
+      "meanNaiveConflictChecks": 11172691.8,
+      "meanDfsConflictChecks": 45394.4,
+      "meanDfsNodes": 45394.4,
+      "meanSolutions": 9269.2,
+      "checkReduction": 0.995937022088088,
+      "nodeReduction": 0.9675313639939919,
+      "agree": true,
+      "instances": 5
+    },
+    {
+      "courses": 11,
+      "meanDensity": 0.09159090909090908,
+      "naiveCombinations": 4194304,
+      "searchTreeSize": 5592404,
+      "meanNaiveConflictChecks": 52899833.6,
+      "meanDfsConflictChecks": 66311.2,
+      "meanDfsNodes": 66311.2,
+      "meanSolutions": 4228.6,
+      "checkReduction": 0.9987464762081973,
+      "nodeReduction": 0.9881426306110932,
+      "agree": true,
+      "instances": 5
+    }
+  ],
+  "timing": [
+    {
+      "courses": 2,
+      "meanNaiveTimeMs": 0.07786000000000967,
+      "meanDfsTimeMs": 0.014000000000000002
+    },
+    {
+      "courses": 3,
+      "meanNaiveTimeMs": 0.06647999999995591,
+      "meanDfsTimeMs": 0.018000000000000002
+    },
+    {
+      "courses": 4,
+      "meanNaiveTimeMs": 0.2930399999999963,
+      "meanDfsTimeMs": 0.03
+    },
+    {
+      "courses": 5,
+      "meanNaiveTimeMs": 0.8537600000000112,
+      "meanDfsTimeMs": 0.086
+    },
+    {
+      "courses": 6,
+      "meanNaiveTimeMs": 3.1760200000000167,
+      "meanDfsTimeMs": 0.352
+    },
+    {
+      "courses": 7,
+      "meanNaiveTimeMs": 10.039980000000014,
+      "meanDfsTimeMs": 0.6
+    },
+    {
+      "courses": 8,
+      "meanNaiveTimeMs": 17.93878000000002,
+      "meanDfsTimeMs": 1.288
+    },
+    {
+      "courses": 9,
+      "meanNaiveTimeMs": 63.22951999999996,
+      "meanDfsTimeMs": 1.238
+    },
+    {
+      "courses": 10,
+      "meanNaiveTimeMs": 257.0772800000001,
+      "meanDfsTimeMs": 3.052
+    },
+    {
+      "courses": 11,
+      "meanNaiveTimeMs": 1195.9746799999998,
+      "meanDfsTimeMs": 3.4879999999999995
+    }
+  ]
+}

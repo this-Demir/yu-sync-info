@@ -1,0 +1,10 @@
+{
+  "note": "Hardware and runtime for the timing figures in docs/06-evaluation.md. Structural results are hardware independent.",
+  "generatedAt": "2026-08-01T21:45:49.272Z",
+  "cpu": "13th Gen Intel(R) Core(TM) i9-13900H",
+  "logicalCores": 20,
+  "totalMemoryGB": 15.7,
+  "platform": "Windows_NT 10.0.26200",
+  "arch": "x64",
+  "runtime": "Node v22.15.1"
+}

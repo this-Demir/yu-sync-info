@@ -1,0 +1,117 @@
+{
+  "experiment": "Conflict check microbenchmark",
+  "claim": "The word-wise check costs a constant factor of about the word size less than the slot-wise check, but both grow linearly in the size of the slot universe. Constant time holds only for a fixed universe.",
+  "config": {
+    "slotSizes": [
+      32,
+      64,
+      128,
+      256,
+      512,
+      1024,
+      2048,
+      4096,
+      8192
+    ],
+    "reps": 200000,
+    "trials": 7
+  },
+  "deterministic": [
+    {
+      "slots": 32,
+      "words": 1
+    },
+    {
+      "slots": 64,
+      "words": 2
+    },
+    {
+      "slots": 128,
+      "words": 4
+    },
+    {
+      "slots": 256,
+      "words": 8
+    },
+    {
+      "slots": 512,
+      "words": 16
+    },
+    {
+      "slots": 1024,
+      "words": 32
+    },
+    {
+      "slots": 2048,
+      "words": 64
+    },
+    {
+      "slots": 4096,
+      "words": 128
+    },
+    {
+      "slots": 8192,
+      "words": 256
+    }
+  ],
+  "timing": {
+    "wordBits": 32,
+    "deployedWeekNs": 13.898499999995693,
+    "points": [
+      {
+        "slots": 32,
+        "wordAndNs": 9.720999999999549,
+        "slotScanNs": 32.10099999999329,
+        "speedup": 3.302232280629028
+      },
+      {
+        "slots": 64,
+        "wordAndNs": 13.149499999999534,
+        "slotScanNs": 68.47100000000864,
+        "speedup": 5.207118141375038
+      },
+      {
+        "slots": 128,
+        "wordAndNs": 15.477499999997233,
+        "slotScanNs": 109.92849999999635,
+        "speedup": 7.102471329350089
+      },
+      {
+        "slots": 256,
+        "wordAndNs": 14.498999999996158,
+        "slotScanNs": 200.85000000000036,
+        "speedup": 13.852679495141292
+      },
+      {
+        "slots": 512,
+        "wordAndNs": 20.64550000000054,
+        "slotScanNs": 404.408000000003,
+        "speedup": 19.58819113123889
+      },
+      {
+        "slots": 1024,
+        "wordAndNs": 33.96049999999377,
+        "slotScanNs": 745.8474999999999,
+        "speedup": 21.962206092376043
+      },
+      {
+        "slots": 2048,
+        "wordAndNs": 65.24350000000595,
+        "slotScanNs": 1472.9089999999997,
+        "speedup": 22.575566914709746
+      },
+      {
+        "slots": 4096,
+        "wordAndNs": 110.85949999999683,
+        "slotScanNs": 2920.3035,
+        "speedup": 26.342383828179663
+      },
+      {
+        "slots": 8192,
+        "wordAndNs": 201.80850000000643,
+        "slotScanNs": 5819.213,
+        "speedup": 28.835321604391364
+      }
+    ]
+  }
+}
