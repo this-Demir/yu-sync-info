@@ -1,11 +1,25 @@
-import { useRef, useEffect } from "react";
+import { useRef, useEffect, useState } from "react";
 import { Network } from "lucide-react";
 import { useSimulationStore, type TreeNode } from "../../store/useSimulationStore";
-import type { Section } from "../../core/types";
+import { DAYS, formatWeekMask } from "../../core/time";
+import type { DayName, Section } from "../../core/types";
+
+/** Conjunction of two week masks, the quantity the conflict test reads. */
+function maskConjunction(a: Record<DayName, number>, b: Record<DayName, number>): number {
+    return DAYS.reduce((acc, d) => acc | ((a[d] ?? 0) & (b[d] ?? 0)), 0);
+}
+
+/** Union of two week masks, the running mask after an accepted placement. */
+function maskUnion(a: Record<DayName, number>, b: Record<DayName, number>): Record<DayName, number> {
+    const out = {} as Record<DayName, number>;
+    for (const d of DAYS) out[d] = (a[d] ?? 0) | (b[d] ?? 0);
+    return out;
+}
 
 export default function GraphTree() {
     const { treeRoot, currentState, validSchedules, activeValidScheduleIndex, activePathIds, isPlaying } = useSimulationStore();
     const scrollRef = useRef<HTMLDivElement>(null);
+    const [showMasks, setShowMasks] = useState(true);
 
     // Auto-scroll to bottom as tree grows downward
     useEffect(() => {
@@ -44,7 +58,18 @@ export default function GraphTree() {
             <div className="flex items-center gap-2 mb-4 text-slate-800 border-b border-slate-100 pb-3 shrink-0">
                 <Network size={18} className="text-[#004B87]" />
                 <h3 className="text-sm font-bold uppercase tracking-widest text-[#004B87]">State-Space Tree</h3>
-                <span className="ml-auto text-[10px] text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200 font-semibold tracking-wide">
+                <button
+                    onClick={() => setShowMasks(v => !v)}
+                    title="Show the running mask W and the candidate mask at each node, so the loop invariant can be checked directly"
+                    className={`ml-auto text-[10px] px-2.5 py-1 rounded-full border font-semibold tracking-wide transition-colors ${
+                        showMasks
+                            ? "bg-[#004B87] border-[#004B87] text-white"
+                            : "bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300"
+                    }`}
+                >
+                    Masks
+                </button>
+                <span className="text-[10px] text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200 font-semibold tracking-wide">
                     DFS Backtracking Search
                 </span>
             </div>
@@ -62,7 +87,7 @@ export default function GraphTree() {
                     }
                 `}</style>
                 <div className="min-w-max min-h-max pb-32 pr-32 cursor-grab active:cursor-grabbing">
-                    <TreeNodeView node={treeRoot} depth={0} glowPathIds={glowPathIds} validSchedules={validSchedules} />
+                    <TreeNodeView node={treeRoot} depth={0} glowPathIds={glowPathIds} validSchedules={validSchedules} showMasks={showMasks} />
                 </div>
             </div>
         </div>
@@ -70,7 +95,7 @@ export default function GraphTree() {
 }
 
 // Recursive Component to render the Tree Hierarchy using Flexbox & connecting borders
-function TreeNodeView({ node, depth, glowPathIds, validSchedules }: { node: TreeNode; depth: number, glowPathIds: Set<string>, validSchedules: Section[][] }) {
+function TreeNodeView({ node, depth, glowPathIds, validSchedules, showMasks }: { node: TreeNode; depth: number, glowPathIds: Set<string>, validSchedules: Section[][], showMasks: boolean }) {
 
     // Status color mapping for Light Mode
     let nodeColors = "bg-white border-gray-200 text-gray-400"; // PENDING / Default
@@ -164,6 +189,15 @@ function TreeNodeView({ node, depth, glowPathIds, validSchedules }: { node: Tree
                     </div>
                 </div>
 
+                {/* Loop-invariant annotation. W is the running mask on arrival,
+                    the conjunction is what the conflict test evaluated, and the
+                    union is the running mask handed to the subtree. Together
+                    these are conditions 2 and 3 of the invariant in
+                    docs/04-algorithm.md, readable node by node. */}
+                {showMasks && node.id !== "root" && (
+                    <MaskAnnotation node={node} />
+                )}
+
                 {/* Status tag text next to node for extreme clarity */}
                 <span className="ml-3 text-[10px] uppercase tracking-widest font-semibold opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap text-slate-400">
                     [{node.status}]
@@ -183,11 +217,51 @@ function TreeNodeView({ node, depth, glowPathIds, validSchedules }: { node: Tree
                                 depth={depth + 1}
                                 glowPathIds={glowPathIds}
                                 validSchedules={validSchedules}
+                                showMasks={showMasks}
                             />
                         </div>
                     ))}
                 </div>
             )}
         </div>
+    );
+}
+
+/** Renders the operands and result of the conflict test performed at one node. */
+function MaskAnnotation({ node }: { node: TreeNode }) {
+    const conjunction = maskConjunction(node.maskBefore, node.sectionMask);
+    const accepted = node.isGhost || conjunction === 0;
+    const after = node.isGhost ? node.maskBefore : maskUnion(node.maskBefore, node.sectionMask);
+
+    return (
+        <span className="ml-3 flex items-center gap-2 whitespace-nowrap text-[9.5px] leading-none text-slate-400">
+            <span title="Running mask W on arrival at this node">
+                W <span className="text-slate-500">{formatWeekMask(node.maskBefore)}</span>
+            </span>
+            <span className="text-slate-300">&and;</span>
+            <span title="Mask of the candidate section">
+                <span className="text-slate-500">{formatWeekMask(node.sectionMask)}</span>
+            </span>
+            <span className="text-slate-300">=</span>
+            {node.isGhost ? (
+                <span className="rounded bg-violet-50 px-1.5 py-0.5 font-semibold text-violet-600" title="Ghost section, exempt from the conflict test and contributing no slots">
+                    ghost, untested
+                </span>
+            ) : (
+                <span
+                    className={`rounded px-1.5 py-0.5 font-semibold ${
+                        accepted ? "bg-emerald-50 text-emerald-600" : "bg-red-50 text-red-600"
+                    }`}
+                    title={accepted ? "Disjoint, so the placement is accepted" : "Non-zero, so the subtree is pruned"}
+                >
+                    {conjunction}
+                </span>
+            )}
+            {accepted && (
+                <span className="text-slate-300" title="Running mask handed to the subtree">
+                    &rarr; W <span className="text-slate-400">{formatWeekMask(after)}</span>
+                </span>
+            )}
+        </span>
     );
 }

@@ -1,5 +1,6 @@
-import { Play, Pause, StepForward, RotateCcw, Zap } from "lucide-react";
+import { Play, Pause, StepForward, RotateCcw, Zap, Download } from "lucide-react";
 import { useSimulationStore } from "../../store/useSimulationStore";
+import { APP_VERSION } from "../../core/appMeta";
 
 export default function ControlDeck() {
     const {
@@ -11,11 +12,62 @@ export default function ControlDeck() {
         step,
         reset,
         instantCompute,
-        setSpeedMultiplier
+        setSpeedMultiplier,
+        sections,
+        validSchedules
     } = useSimulationStore();
 
     const isFinished = currentState?.step === "COMPLETE";
     const statusColor = getStatusColor(currentState?.step);
+    const stats = currentState?.stats;
+
+    // Machine-readable export of the current run.
+    //
+    // The counters come from the simulation engine, which attaches a snapshot
+    // to every yielded state, so a run can be exported mid-traversal and not
+    // only once it has completed. The same counters are what the experiments in
+    // docs/06-evaluation.md aggregate in bulk.
+    const exportMetrics = () => {
+        if (!currentState) return;
+
+        const courses = [...new Set(sections.map(s => s.courseCode))].sort();
+        const payload = {
+            schemaVersion: 1,
+            appVersion: APP_VERSION,
+            exportedAt: new Date().toISOString(),
+            engine: "SimulationEngine.ts",
+            note: "Counters are as of the step shown when this file was exported. A run that has not reached COMPLETE is a partial traversal.",
+            run: {
+                step: currentState.step,
+                complete: currentState.step === "COMPLETE",
+                message: currentState.message,
+            },
+            instance: {
+                courses: courses.length,
+                courseCodes: courses,
+                sections: sections.length,
+                sectionsPerCourse: courses.map(c => ({
+                    courseCode: c,
+                    sections: sections.filter(s => s.courseCode === c).length,
+                })),
+            },
+            metrics: stats ?? null,
+            solutions: {
+                found: validSchedules.length,
+                schedules: validSchedules.map(schedule =>
+                    schedule.map(s => ({ courseCode: s.courseCode, sectionNo: s.sectionNo }))
+                ),
+            },
+        };
+
+        const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement("a");
+        a.href = url;
+        a.download = `yu-sync-run-${Date.now()}.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+    };
 
     return (
         <div className="flex flex-col gap-4 w-full h-fit items-center px-1 pb-1 font-sans">
@@ -31,6 +83,27 @@ export default function ControlDeck() {
                     {currentState?.message || "Awaiting initialization..."}
                 </div>
             </div>
+
+            {/* Live counters. These are the quantities the evaluation aggregates,
+                shown per run so a single traversal can be inspected directly. */}
+            {stats && (
+                <div className="w-full grid grid-cols-3 sm:grid-cols-5 gap-2">
+                    {[
+                        { k: "Nodes", v: stats.nodes },
+                        { k: "Pruned", v: stats.pruned },
+                        { k: "Checks", v: stats.conflictChecks },
+                        { k: "Depth", v: stats.depthReached },
+                        { k: "Schedules", v: stats.solutionCount },
+                    ].map(item => (
+                        <div key={item.k} className="bg-white rounded-md border border-gray-200 px-2.5 py-1.5 shadow-sm">
+                            <div className="font-mono text-[9px] uppercase tracking-widest text-gray-400">{item.k}</div>
+                            <div className="font-mono text-sm font-bold text-gray-800 leading-tight">
+                                {item.v.toLocaleString("en-US")}
+                            </div>
+                        </div>
+                    ))}
+                </div>
+            )}
 
             {/* Controls Row */}
             <div className="w-full flex items-center justify-between">
@@ -78,6 +151,17 @@ export default function ControlDeck() {
                         title="Instant Compute"
                     >
                         <Zap size={20} className={!isFinished ? "fill-current" : ""} />
+                    </button>
+
+                    <button
+                        onClick={exportMetrics}
+                        disabled={!currentState}
+                        className={`p-3 rounded-md flex items-center justify-center transition-all duration-200 border ml-2
+                            ${!currentState ? 'opacity-50 cursor-not-allowed border-gray-200 bg-slate-50 text-slate-400' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:scale-95'}
+                        `}
+                        title="Export this run's metrics as JSON"
+                    >
+                        <Download size={20} />
                     </button>
                 </div>
 
