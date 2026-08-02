@@ -19,7 +19,7 @@
 
 This is the open-source companion to **YU-Sync** — a university course scheduler. The visualizer exposes the algorithm internals so you can watch it think: every DFS branch explored, every bitmask conflict detected, every backtrack taken.
 
-## Try it — run the sandbox locally
+## Try it: run the sandbox locally
 
 ```bash
 git clone https://github.com/this-demir/yu-sync-info
@@ -45,26 +45,30 @@ For the full documentation — algorithm walkthrough, complexity analysis, bitma
 
 ## Algorithm
 
-The scheduler uses **zero-allocation bitmask conflict detection** combined with **DFS backtracking**:
+The scheduler combines **bitmask conflict detection** with **DFS backtracking**:
 
 ```
 For each course, iterate candidate sections:
   mask = scheduledDays[day] & section.timeMask
   if mask === 0 → no conflict → recurse deeper
-  else         → conflict detected in O(1) → backtrack
+  else         → conflict detected → prune the subtree, backtrack
 ```
 
-Each day's schedule is a single integer. An `AND` with a section's bitmask detects any overlap in constant time — no iteration over time slots, no allocation.
+Each day's schedule is a single integer. An `AND` with a section's bitmask detects any overlap without iterating over time slots.
 
-Detailed write-up: [`docs/algorithm.md`](./docs/algorithm.md) · [`docs/architecture.md`](./docs/architecture.md)
+## The paper
 
-## Stack
+[`docs/`](./docs) contains a self-contained academic write-up of the problem and the engine, complete on its own without running the app.
 
-- **React 19** + **Vite 7** — UI and build
-- **TypeScript 5.9** — strict throughout
-- **Zustand** — generator-driven simulation state via Observer pattern
-- **Tailwind CSS v3** — styling
-- **Vitest** — mathematical core parity tests (no mocks)
+- The problem is defined formally and **proved NP-complete** by reduction from graph 3-colouring — [`docs/03-complexity.md`](./docs/03-complexity.md)
+- The engine is **proved sound and complete** via a loop invariant — [`docs/04-algorithm.md`](./docs/04-algorithm.md)
+- Four **reproducible experiments** with committed data and figures, including a constraint-density phase transition — [`docs/06-evaluation.md`](./docs/06-evaluation.md)
+- What the work does *not* establish — [`docs/08-limitations.md`](./docs/08-limitations.md)
+
+Start at [`docs/README.md`](./docs/README.md). Regenerate every number and figure with `cd app && npm run bench`.
+
+Three claims made by earlier versions of these docs did not survive that scrutiny. The conflict check is constant-time only for a fixed slot universe ([`docs/04-algorithm.md`](./docs/04-algorithm.md)), the traversal is not allocation-free ([`docs/05-implementation.md`](./docs/05-implementation.md)), and the pruning benefit is a function of size and density rather than a constant ([`docs/06-evaluation.md`](./docs/06-evaluation.md)).
+
 
 ## Repo layout
 
@@ -73,21 +77,25 @@ yu-sync-info/
 ├── app/                  # the full React + Vite frontend
 │   ├── src/
 │   │   ├── core/         # SimulationEngine.ts · scheduler.ts · time.ts · types.ts
+│   │   ├── bench/        # instance generation · the four experiments
 │   │   ├── store/        # useSimulationStore · useRouteStore
 │   │   ├── pages/        # Landing · Visualizer · Docs · Media
 │   │   └── components/
+│   ├── scripts/          # figure generator writing docs/data + docs/figures
 │   ├── public/
 │   ├── index.html
 │   └── package.json
-└── docs/                 # algorithm and architecture write-ups
-    ├── algorithm.md
-    └── architecture.md
+└── docs/                 # the numbered paper, plus data/ and figures/
+    ├── 00-abstract.md … 09-references.md
+    ├── data/             # raw experiment output (JSON)
+    └── figures/          # generated SVG figures
 ```
 
 ```bash
 # from app/
 npm run test      # Vitest watch mode
 npm run coverage  # V8 coverage report
+npm run bench     # rerun all experiments, regenerate docs/data + docs/figures
 npm run build     # type-check + production build
 ```
 
