@@ -5,7 +5,7 @@ export default function Navbar() {
     const { currentPage, navigate } = useRouteStore();
 
     return (
-        <header className="relative z-50 shrink-0 bg-white border-b border-gray-200" role="banner">
+        <header className="sticky top-0 z-50 shrink-0 bg-white border-b border-gray-200" role="banner">
             <div className="mx-auto w-full px-4 md:px-6 h-14 flex items-center justify-between">
 
                 {/* Left Side (Breadcrumbs) */}
@@ -36,7 +36,7 @@ export default function Navbar() {
                         onClick={() => navigate('docs')}
                         className={`h-full flex items-center border-b-2 px-1 text-sm font-medium transition-colors ${currentPage === 'docs' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
                     >
-                        Architecture Docs
+                        The Paper
                     </button>
                     <button
                         onClick={() => navigate('media')}

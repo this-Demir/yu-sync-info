@@ -8,6 +8,6 @@ interface RouteState {
 }
 
 export const useRouteStore = create<RouteState>((set) => ({
-    currentPage: 'simulator',
+    currentPage: 'landing',
     navigate: (page) => set({ currentPage: page }),
 }));
