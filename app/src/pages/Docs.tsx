@@ -3,394 +3,348 @@ import Navbar from "../components/layout/Navbar";
 import { generateSchedules } from "../core/scheduler";
 import { simulateScheduling } from "../core/SimulationEngine";
 import courseData from "../data/yu_sync_test_courses.json";
+import type { Section } from "../core/types";
+import { RESULTS } from "../bench/results.generated";
+import { Tex } from "../components/ui/Tex";
+import Figure from "../components/docs/Figure";
+import BitmaskPlayground from "../components/docs/BitmaskPlayground";
+import ReductionExplorer from "../components/docs/ReductionExplorer";
+import ComplexityExplorer from "../components/docs/ComplexityExplorer";
+import PhaseTransitionRunner from "../components/docs/PhaseTransitionRunner";
 
-// --- Shared Components ---
+// The in-app edition of the paper under docs/.
+//
+// The Markdown files are the authoritative document and are complete without
+// this page. What this page adds is the ability to operate the results rather
+// than only read them, so every claim here links back to the section that
+// proves or measures it, and every measured number is imported from
+// results.generated.ts rather than typed in by hand.
 
-const SectionTitle = ({ title, subtitle }: { title: string; subtitle: string }) => (
+/** The bundled dataset accepts either field-naming convention, as the engines do. */
+interface RawCourse {
+    courseCode?: string;
+    CourseCode?: string;
+    sections?: Section[];
+    Sections?: Section[];
+}
+
+// --- Shared presentation ---
+
+const SectionTitle = ({ number, title, subtitle, source }: { number: string; title: string; subtitle: string; source: string }) => (
     <div className="mb-10">
-        <h1 className="text-4xl font-black tracking-tight text-gray-900 mb-3">{title}</h1>
-        <p className="text-xl text-gray-500 font-medium tracking-tight leading-relaxed">{subtitle}</p>
+        <div className="mb-3 flex items-center gap-3">
+            <span className="rounded-md bg-gray-900 px-2 py-0.5 font-mono text-[11px] font-bold text-white">{number}</span>
+            <span className="font-mono text-[11px] text-gray-400">{source}</span>
+        </div>
+        <h1 className="mb-3 text-4xl font-black tracking-tight text-gray-900">{title}</h1>
+        <p className="text-xl font-medium leading-relaxed tracking-tight text-gray-500">{subtitle}</p>
     </div>
 );
 
-const MathBlock = ({ formula }: { formula: string }) => (
-    <div className="bg-gray-50 border border-gray-200 rounded-md p-5 font-mono text-sm text-gray-800 text-center overflow-x-auto shadow-sm my-8">
-        <code>{formula}</code>
-    </div>
-);
+/** A stated result, marked with how it is established. */
+const Claim = ({ kind, title, children }: { kind: "Proved" | "Measured" | "Cited"; title: string; children: React.ReactNode }) => {
+    const styles = {
+        Proved: "border-blue-200 bg-blue-50 text-blue-700",
+        Measured: "border-emerald-200 bg-emerald-50 text-emerald-700",
+        Cited: "border-amber-200 bg-amber-50 text-amber-700",
+    }[kind];
+
+    return (
+        <div className="not-prose my-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
+            <div className="mb-2 flex flex-wrap items-center gap-2.5">
+                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${styles}`}>
+                    {kind}
+                </span>
+                <span className="text-sm font-bold tracking-tight text-gray-900">{title}</span>
+            </div>
+            <div className="text-[13px] leading-relaxed text-gray-600">{children}</div>
+        </div>
+    );
+};
 
 const CodeSnippet = ({ code, lang }: { code: string; lang: string }) => {
     const [copied, setCopied] = useState(false);
     return (
-        <div className="relative bg-[#0A0A0A] rounded-lg border border-gray-800 my-8 shadow-2xl overflow-hidden">
-            <div className="flex items-center justify-between px-4 py-2.5 bg-[#1A1A1A] border-b border-gray-800">
-                <span className="text-xs font-mono text-gray-400 capitalize">{lang}</span>
+        <div className="relative my-8 overflow-hidden rounded-lg border border-gray-800 bg-[#0A0A0A] shadow-2xl">
+            <div className="flex items-center justify-between border-b border-gray-800 bg-[#1A1A1A] px-4 py-2.5">
+                <span className="font-mono text-xs capitalize text-gray-400">{lang}</span>
                 <button
                     onClick={() => {
                         navigator.clipboard.writeText(code.replace(/<[^>]+>/g, ''));
                         setCopied(true);
                         setTimeout(() => setCopied(false), 2000);
                     }}
-                    className="text-xs font-semibold text-gray-400 hover:text-white transition-colors flex items-center gap-1.5"
+                    className="flex items-center gap-1.5 text-xs font-semibold text-gray-400 transition-colors hover:text-white"
                 >
-                    {copied ? (
-                        <svg className="w-3.5 h-3.5 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" /></svg>
-                    ) : (
-                        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z" /></svg>
-                    )}
                     {copied ? 'Copied' : 'Copy'}
                 </button>
             </div>
-            <div className="p-5 overflow-x-auto text-[13px] font-mono leading-relaxed">
+            <div className="overflow-x-auto p-5 font-mono text-[13px] leading-relaxed">
                 <pre><code className="text-gray-300" dangerouslySetInnerHTML={{ __html: code }} /></pre>
             </div>
         </div>
     );
 };
 
-const TreeDiagram = () => {
-    type NodeStatus = "root" | "valid" | "pruned" | "success" | "pending";
+const DataTable = ({ headers, rows, highlight }: { headers: string[]; rows: (string | number)[][]; highlight?: number }) => (
+    <div className="not-prose my-8 overflow-x-auto">
+        <table className="w-full border-collapse text-sm">
+            <thead>
+                <tr className="border-b border-gray-200 bg-gray-50">
+                    {headers.map(h => (
+                        <th key={h} className="px-3 py-2.5 text-left text-[11px] font-bold uppercase tracking-wider text-gray-500">{h}</th>
+                    ))}
+                </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-100">
+                {rows.map((row, i) => (
+                    <tr key={i} className={highlight === i ? "bg-amber-50" : "transition-colors hover:bg-gray-50"}>
+                        {row.map((cell, j) => (
+                            <td key={j} className={`px-3 py-2 font-mono text-[12px] ${j === 0 ? "font-bold text-gray-900" : "text-gray-600"}`}>
+                                {cell}
+                            </td>
+                        ))}
+                    </tr>
+                ))}
+            </tbody>
+        </table>
+    </div>
+);
 
-    const W = 700, H = 460;
+// --- Static counterpart to the state-space tree, matching Figure 4.1 ---
 
-    const [zoom, setZoom] = useState(1);
-    const containerRef = useRef<HTMLDivElement>(null);
-
-    const calcFit = () => {
-        if (!containerRef.current) return 1;
-        const avail = containerRef.current.clientWidth - 32;
-        return Math.min(1, Math.max(0.4, avail / W));
-    };
-
-    useEffect(() => { setZoom(calcFit()); }, []);
-
-    const zoomIn  = () => setZoom(z => Math.min(1.5, parseFloat((z + 0.1).toFixed(1))));
-    const zoomOut = () => setZoom(z => Math.max(0.4, parseFloat((z - 0.1).toFixed(1))));
-    const zoomFit = () => setZoom(calcFit());
-    const NW = 138, NH = 56;
-
-    const nodes: Record<string, { x: number; y: number; label: string; sub: string; status: NodeStatus; step: number | null }> = {
-        root:  { x: 350, y: 48,  label: "Root",      sub: "start — 0 courses",  status: "root",    step: null },
-        chem1: { x: 185, y: 162, label: "CHEM 1130",  sub: "Section 1",          status: "valid",   step: 1 },
-        chem2: { x: 540, y: 162, label: "CHEM 1130",  sub: "Section 2",          status: "pending", step: 6 },
-        engr1: { x: 75,  y: 286, label: "ENGR 1116",  sub: "Section 1",          status: "pruned",  step: 2 },
-        engr2: { x: 295, y: 286, label: "ENGR 1116",  sub: "Section 2",          status: "valid",   step: 3 },
-        math1: { x: 200, y: 408, label: "MATH 1132",  sub: "Section 1",          status: "success", step: 4 },
-        math2: { x: 400, y: 408, label: "MATH 1132",  sub: "Section 2",          status: "pruned",  step: 5 },
-    };
-
-    const edges = [
-        { from: "root",  to: "chem1" },
-        { from: "root",  to: "chem2" },
-        { from: "chem1", to: "engr1" },
-        { from: "chem1", to: "engr2" },
-        { from: "engr2", to: "math1" },
-        { from: "engr2", to: "math2" },
+const InvariantTrace = () => {
+    const rows: { indent: number; label: string; test: string; verdict: "accept" | "reject" | "solution" }[] = [
+        { indent: 0, label: "A1  (3)", test: "0 AND 3 = 0", verdict: "accept" },
+        { indent: 1, label: "B1  (6)", test: "3 AND 6 = 2", verdict: "reject" },
+        { indent: 1, label: "B2  (48)", test: "3 AND 48 = 0", verdict: "accept" },
+        { indent: 2, label: "C1  (1)", test: "51 AND 1 = 1", verdict: "reject" },
+        { indent: 2, label: "C2  (8)", test: "51 AND 8 = 0", verdict: "solution" },
+        { indent: 0, label: "A2  (12)", test: "0 AND 12 = 0", verdict: "accept" },
+        { indent: 1, label: "B1  (6)", test: "12 AND 6 = 4", verdict: "reject" },
+        { indent: 1, label: "B2  (48)", test: "12 AND 48 = 0", verdict: "accept" },
+        { indent: 2, label: "C1  (1)", test: "60 AND 1 = 0", verdict: "solution" },
+        { indent: 2, label: "C2  (8)", test: "60 AND 8 = 8", verdict: "reject" },
     ];
 
-    const successPath = new Set(["root→chem1", "chem1→engr2", "engr2→math1"]);
-
-    const fill:   Record<NodeStatus, string> = { root: "#fff",    valid: "#f0fdf4", pruned: "#fef2f2", success: "#dcfce7", pending: "#f9fafb" };
-    const stroke: Record<NodeStatus, string> = { root: "#9ca3af", valid: "#86efac", pruned: "#fca5a5", success: "#16a34a", pending: "#d1d5db" };
-    const sw:     Record<NodeStatus, number> = { root: 2,         valid: 1.5,       pruned: 1.5,       success: 2.5,       pending: 1 };
-    const tc:     Record<NodeStatus, string> = { root: "#374151", valid: "#166534", pruned: "#b91c1c",  success: "#14532d", pending: "#9ca3af" };
+    const style = {
+        accept: "text-emerald-600",
+        reject: "text-red-500",
+        solution: "text-emerald-700 font-bold",
+    };
 
     return (
-        <div className="my-10 not-prose border border-gray-200 rounded-xl overflow-hidden bg-white shadow-sm">
-
-            {/* Legend */}
-            <div className="bg-gray-50 border-b border-gray-100 px-5 py-3 flex gap-4 flex-wrap items-center text-[11px] text-gray-500 font-medium">
-                <span className="text-[10px] font-bold text-gray-300 uppercase tracking-widest mr-1">Legend</span>
-                {([
-                    ["#fff",    "#9ca3af", 2,   "Root"],
-                    ["#f0fdf4", "#86efac", 1.5, "Valid path"],
-                    ["#fef2f2", "#fca5a5", 1.5, "Pruned"],
-                    ["#dcfce7", "#16a34a", 2.5, "Schedule found"],
-                    ["#f9fafb", "#d1d5db", 1,   "Pending"],
-                ] as [string, string, number, string][]).map(([f, s, sw, lbl]) => (
-                    <span key={lbl} className="flex items-center gap-1.5">
-                        <svg width="16" height="16" viewBox="0 0 16 16">
-                            <rect x="1" y="1" width="14" height="14" rx="3" fill={f} stroke={s} strokeWidth={sw} />
-                        </svg>
-                        {lbl}
-                    </span>
-                ))}
-                <span className="ml-auto flex items-center gap-1.5">
-                    <svg width="16" height="16" viewBox="0 0 16 16">
-                        <circle cx="8" cy="8" r="7" fill="#1f2937" />
-                        <text x="8" y="12" textAnchor="middle" fontSize="8" fontWeight="900" fill="white" fontFamily="system-ui,sans-serif">n</text>
-                    </svg>
-                    DFS step order
-                </span>
-            </div>
-
-            {/* SVG Tree */}
-            <div ref={containerRef} className="relative p-4 bg-white">
-                {/* Zoom controls */}
-                <div className="absolute top-3 right-3 z-10 flex items-center gap-1 bg-white border border-gray-200 rounded-lg px-2 py-1 shadow-sm">
-                    <button onClick={zoomOut} className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-900 font-bold text-base leading-none">−</button>
-                    <span className="text-[10px] font-mono text-gray-400 w-9 text-center select-none">{Math.round(zoom * 100)}%</span>
-                    <button onClick={zoomIn}  className="w-6 h-6 flex items-center justify-center text-gray-500 hover:text-gray-900 font-bold text-base leading-none">+</button>
-                    <span className="w-px h-4 bg-gray-200 mx-1" />
-                    <button onClick={zoomFit} className="text-[10px] font-bold text-gray-400 hover:text-gray-700 uppercase tracking-wide px-1">fit</button>
-                </div>
-
-                <div style={{ height: H * zoom, overflow: "hidden" }}>
-                <svg width={W * zoom} height={H * zoom} viewBox={`0 0 ${W} ${H}`} style={{ display: "block", margin: "0 auto" }}>
-
-                    {/* Draw edges */}
-                    {edges.map(({ from, to }) => {
-                        const f = nodes[from], t = nodes[to];
-                        const key = `${from}→${to}`;
-                        const isSuccess = successPath.has(key);
-                        const isPruned  = nodes[to].status === "pruned";
-                        const isPending = nodes[to].status === "pending";
-                        return (
-                            <line key={key}
-                                x1={f.x} y1={f.y + NH / 2}
-                                x2={t.x} y2={t.y - NH / 2}
-                                stroke={isSuccess ? "#4ade80" : isPruned ? "#fca5a5" : "#e5e7eb"}
-                                strokeWidth={isSuccess ? 2.5 : 1.5}
-                                strokeDasharray={isPruned || isPending ? "5 4" : undefined}
-                            />
-                        );
-                    })}
-
-                    {/* Ghost pruned subtree under ENGR Sec 1 */}
-                    <line x1={75} y1={286 + NH / 2} x2={75} y2={390}
-                        stroke="#fca5a5" strokeWidth={1} strokeDasharray="4 3" />
-                    <rect x={22} y={390} width={106} height={34} rx={8}
-                        fill="#fef2f2" stroke="#fca5a5" strokeWidth={1} strokeDasharray="4 3" opacity={0.6} />
-                    <text x={75} y={404} textAnchor="middle" fontSize="9.5"
-                        fill="#b91c1c" fontFamily="system-ui,sans-serif" opacity={0.7}>MATH 1132 ×2</text>
-                    <text x={75} y={418} textAnchor="middle" fontSize="9"
-                        fill="#b91c1c" fontFamily="system-ui,sans-serif" opacity={0.5}>paths skipped</text>
-
-                    {/* Draw nodes */}
-                    {Object.entries(nodes).map(([key, n]) => {
-                        const nx = n.x - NW / 2, ny = n.y - NH / 2;
-                        return (
-                            <g key={key}>
-                                <rect x={nx} y={ny} width={NW} height={NH} rx={10}
-                                    fill={fill[n.status]} stroke={stroke[n.status]} strokeWidth={sw[n.status]} />
-
-                                <text x={n.x} y={n.y - 7} textAnchor="middle"
-                                    fontSize="11.5" fontWeight="700" fill={tc[n.status]}
-                                    fontFamily="system-ui,sans-serif">
-                                    {n.label}
-                                </text>
-                                <text x={n.x} y={n.y + 11} textAnchor="middle"
-                                    fontSize="10" fill={tc[n.status]} opacity={0.55}
-                                    fontFamily="system-ui,sans-serif">
-                                    {n.sub}
-                                </text>
-
-                                {/* Step badge — top-left */}
-                                {n.step !== null && (
-                                    <g>
-                                        <circle cx={nx + 12} cy={ny + 13} r={11} fill="#1f2937" />
-                                        <text x={nx + 12} y={ny + 17} textAnchor="middle"
-                                            fontSize="9.5" fontWeight="900" fill="white"
-                                            fontFamily="system-ui,sans-serif">{n.step}</text>
-                                    </g>
-                                )}
-
-                                {/* Status badge — top-right */}
-                                {n.status === "pruned" && (
-                                    <g>
-                                        <circle cx={nx + NW - 12} cy={ny + 13} r={11} fill="#ef4444" />
-                                        <text x={nx + NW - 12} y={ny + 17.5} textAnchor="middle"
-                                            fontSize="10" fontWeight="900" fill="white"
-                                            fontFamily="system-ui,sans-serif">✕</text>
-                                    </g>
-                                )}
-                                {(n.status === "valid" || n.status === "success") && (
-                                    <g>
-                                        <circle cx={nx + NW - 12} cy={ny + 13} r={11} fill="#22c55e" />
-                                        <text x={nx + NW - 12} y={ny + 17.5} textAnchor="middle"
-                                            fontSize="10" fontWeight="900" fill="white"
-                                            fontFamily="system-ui,sans-serif">✓</text>
-                                    </g>
-                                )}
-                            </g>
-                        );
-                    })}
-                </svg>
-                </div>
-            </div>
-
-            {/* Step annotations */}
-            <div className="border-t border-gray-100 px-6 py-5">
-                <p className="text-[10px] font-bold text-gray-300 uppercase tracking-widest mb-3">Step-by-step</p>
-                <div className="grid grid-cols-2 gap-x-8 gap-y-2">
-                    {[
-                        [1, "DFS commits to CHEM 1130 Sec 1 — no conflict yet, recurse."],
-                        [2, "M ∧ T ≠ 0 — Monday 10:40 overlap. Entire ENGR Sec 1 subtree pruned."],
-                        [3, "M ∧ T = 0 — no conflict. Continue deeper into ENGR Sec 2."],
-                        [4, "All 3 courses placed, no conflicts → valid schedule recorded."],
-                        [5, "M ∧ T ≠ 0 — Wednesday conflict. MATH Sec 2 pruned."],
-                        [6, "Backtrack to root → try CHEM 1130 Sec 2, exploration continues."],
-                    ].map(([step, text]) => (
-                        <div key={step} className="flex items-start gap-2.5">
-                            <span className="w-5 h-5 rounded-full bg-gray-800 text-white text-[9px] font-black inline-flex items-center justify-center shrink-0 mt-0.5">
-                                {step}
+        <Figure
+            label="Figure 4.1"
+            title="One traversal, with the invariant readable at every node"
+            claim="that the running mask equals the union of the masks accepted so far, and that those masks are pairwise disjoint"
+            source="Lemma 4, section 4.2"
+            caption="All six sections meet on Monday only, so a mask is one 12-bit integer. Ten nodes are visited and four are rejected. The unpruned tree would hold fourteen."
+        >
+            <div className="overflow-x-auto font-mono text-[12px] leading-relaxed">
+                <div className="min-w-[420px]">
+                    <div className="mb-1 text-gray-400">root                                W = 0</div>
+                    {rows.map((r, i) => (
+                        <div key={i} className="flex gap-2">
+                            <span className="text-gray-300">{"│   ".repeat(r.indent)}├──</span>
+                            <span className="w-20 text-gray-800">{r.label}</span>
+                            <span className="w-36 text-gray-500">{r.test}</span>
+                            <span className={style[r.verdict]}>
+                                {r.verdict === "solution" ? "SCHEDULE FOUND" : r.verdict === "accept" ? "accept" : "reject, prune"}
                             </span>
-                            <span className="text-xs text-gray-500 leading-snug">{text}</span>
                         </div>
                     ))}
                 </div>
             </div>
-
-            {/* Stats */}
-            <div className="border-t border-gray-100 bg-gray-50 px-6 py-4 grid grid-cols-3 gap-4 text-center">
-                <div>
-                    <p className="text-2xl font-black text-gray-900">6</p>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-0.5">Nodes evaluated</p>
-                </div>
-                <div>
-                    <p className="text-2xl font-black text-red-500">3+</p>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-0.5">Paths eliminated</p>
-                </div>
-                <div>
-                    <p className="text-2xl font-black text-emerald-600">1</p>
-                    <p className="text-[10px] uppercase tracking-widest text-gray-400 font-bold mt-0.5">Valid schedule</p>
-                </div>
-            </div>
-        </div>
+        </Figure>
     );
 };
 
+// --- Parity runner, bound to Theorem 6 ---
+
+interface ParityResult {
+    prodSchedules: number;
+    simSchedules: number;
+    prodNodes: number;
+    simNodes: number;
+    prodPruned: number;
+    simPruned: number;
+    prodChecks: number;
+    simChecks: number;
+    identical: boolean;
+    prodTime: string;
+    simTime: string;
+}
+
 const LiveParityRunner = () => {
     const [isRunning, setIsRunning] = useState(false);
-    const [result, setResult] = useState<{ prodTime: string; prodSchedules: number; simTime: string; simSchedules: number } | null>(null);
+    const [result, setResult] = useState<ParityResult | null>(null);
 
     const runCheck = () => {
         setIsRunning(true);
         setResult(null);
         setTimeout(() => {
             const courseCodes = ["CHEM 1130", "ENGR 1116", "MATH 1132", "SOFL 1102"];
-            const testSections = (courseData as any[])
-                .filter(c => courseCodes.includes(c.courseCode ?? c.CourseCode))
+            const testSections = (courseData as RawCourse[])
+                .filter(c => courseCodes.includes(c.courseCode ?? c.CourseCode ?? ""))
                 .flatMap(c => c.sections ?? c.Sections ?? []);
             const maxResults = 200;
+
             const pt0 = performance.now();
-            const prodRes = generateSchedules(testSections, maxResults);
+            const prod = generateSchedules(testSections, maxResults, { enableStats: true });
             const pt1 = performance.now();
+
             const st0 = performance.now();
             const gen = simulateScheduling(testSections, maxResults);
-            let simSchedules: any[] = [];
+            let simSchedules: Section[][] = [];
+            let simStats = { nodes: 0, pruned: 0, conflictChecks: 0 };
+            let yieldedNodes = 0;
+            let yieldedPruned = 0;
             for (const state of gen) {
-                if (state.step === "COMPLETE") simSchedules = state.foundSchedules;
+                if (state.step === "SELECTING") yieldedNodes++;
+                if (state.step === "CONFLICT") yieldedPruned++;
+                if (state.step === "COMPLETE") {
+                    simSchedules = state.foundSchedules;
+                    simStats = state.stats;
+                }
             }
             const st1 = performance.now();
-            setResult({ prodTime: (pt1 - pt0).toFixed(2), prodSchedules: prodRes.results.length, simTime: (st1 - st0).toFixed(2), simSchedules: simSchedules.length });
+
+            setResult({
+                prodSchedules: prod.results.length,
+                simSchedules: simSchedules.length,
+                prodNodes: prod.stats.nodes,
+                simNodes: yieldedNodes,
+                prodPruned: prod.stats.pruned,
+                simPruned: yieldedPruned,
+                prodChecks: prod.stats.conflictChecks,
+                simChecks: simStats.conflictChecks,
+                identical:
+                    JSON.stringify(prod.results) === JSON.stringify(simSchedules) &&
+                    prod.stats.nodes === yieldedNodes &&
+                    prod.stats.pruned === yieldedPruned &&
+                    prod.stats.conflictChecks === simStats.conflictChecks,
+                prodTime: (pt1 - pt0).toFixed(2),
+                simTime: (st1 - st0).toFixed(2),
+            });
             setIsRunning(false);
-        }, 600);
+        }, 400);
     };
 
+    const comparisons = result
+        ? [
+            { label: "Schedules returned", a: result.prodSchedules, b: result.simSchedules },
+            { label: "Nodes visited", a: result.prodNodes, b: result.simNodes },
+            { label: "Branches pruned", a: result.prodPruned, b: result.simPruned },
+            { label: "Conflict checks", a: result.prodChecks, b: result.simChecks },
+        ]
+        : [];
+
     return (
-        <div className="my-10 border border-gray-200 rounded-xl p-8 bg-white shadow-xl flex flex-col items-center justify-center bg-gradient-to-b from-white to-gray-50">
-            {!result && (
-                <button onClick={runCheck} disabled={isRunning} className="px-8 py-4 bg-black text-white text-sm font-bold tracking-wide rounded-lg shadow-lg hover:shadow-xl hover:-translate-y-0.5 disabled:opacity-75 disabled:hover:translate-y-0 transition-all flex items-center">
-                    {isRunning && (
-                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" fill="none" viewBox="0 0 24 24">
-                            <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                            <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
-                        </svg>
-                    )}
-                    {isRunning ? "Running Benchmark..." : "Run Deterministic Parity Check"}
-                </button>
-            )}
-            {result && (
-                <div className="w-full animate-in fade-in slide-in-from-bottom-2 duration-400">
-
-                    {/* Parity status */}
-                    <div className="flex items-center gap-3 mb-6">
-                        <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center shrink-0">
-                            <svg className="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M5 13l4 4L19 7" />
-                            </svg>
-                        </div>
-                        <div>
-                            <p className="text-sm font-bold text-gray-900">Parity confirmed</p>
-                            <p className="text-xs text-gray-400">Both engines returned identical results</p>
-                        </div>
-                        <span className="ml-auto text-[10px] font-bold uppercase tracking-widest text-emerald-600 bg-emerald-50 border border-emerald-200 px-2.5 py-1 rounded-full">
-                            100% match
-                        </span>
-                    </div>
-
-                    {/* Engine comparison */}
-                    <div className="grid grid-cols-2 gap-3 mb-4">
-                        {[
-                            { label: "Production Engine", schedules: result.prodSchedules, time: result.prodTime, note: "scheduler.ts" },
-                            { label: "Simulation Engine", schedules: result.simSchedules,  time: result.simTime,  note: "SimulationEngine.ts" },
-                        ].map(e => (
-                            <div key={e.label} className="border border-gray-200 rounded-xl p-5 bg-white">
-                                <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-3">{e.label}</p>
-                                <p className="text-3xl font-black text-gray-900 leading-none mb-1">{e.schedules}</p>
-                                <p className="text-xs text-gray-400 mb-3">schedules found</p>
-                                <div className="flex items-center justify-between">
-                                    <span className="font-mono text-[10px] text-gray-400">{e.note}</span>
-                                    <span className="font-mono text-[11px] font-semibold text-gray-600 bg-gray-50 border border-gray-200 px-2 py-0.5 rounded">
-                                        {e.time} ms
-                                    </span>
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-
-                    {/* Run again */}
+        <Figure
+            label="Figure E"
+            title="Parity runner"
+            claim="that the two engines return the same schedules and perform the same work, not merely reach the same conclusion"
+            source="Theorem 6, section 5.4"
+            caption={
+                <>
+                    Runs both engines on the same input in this tab. The conflict check count is the strongest of the four
+                    comparisons, because two implementations can agree on every answer while exploring the tree in a
+                    different order, and only that column would notice.
+                </>
+            }
+        >
+            {!result ? (
+                <div className="py-6 text-center">
                     <button
                         onClick={runCheck}
-                        className="w-full py-2.5 text-xs font-semibold text-gray-500 hover:text-gray-900 border border-gray-200 hover:border-gray-300 rounded-lg transition-colors bg-white"
+                        disabled={isRunning}
+                        className="rounded-lg bg-black px-7 py-3 text-sm font-bold tracking-wide text-white shadow-lg transition-all hover:-translate-y-0.5 hover:shadow-xl disabled:opacity-75"
+                    >
+                        {isRunning ? "Running both engines..." : "Run the parity check"}
+                    </button>
+                    <p className="mt-3 text-[11px] text-gray-400">
+                        Industrial Engineering year 1, one of the four scenarios in EngineParity.test.ts
+                    </p>
+                </div>
+            ) : (
+                <div>
+                    <div className={`mb-5 flex items-center gap-3 rounded-lg border px-4 py-3 ${result.identical ? "border-emerald-200 bg-emerald-50" : "border-red-200 bg-red-50"}`}>
+                        <span className={`flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-sm font-black text-white ${result.identical ? "bg-emerald-500" : "bg-red-500"}`}>
+                            {result.identical ? "✓" : "✕"}
+                        </span>
+                        <p className={`text-xs leading-relaxed ${result.identical ? "text-emerald-900" : "text-red-900"}`}>
+                            {result.identical
+                                ? "Identical on every measure. The engines returned the same schedules in the same order and performed the same number of conflict checks."
+                                : "The engines diverged. This is exactly what EngineParity.test.ts exists to catch."}
+                        </p>
+                    </div>
+
+                    <DataTable
+                        headers={["Measure", "scheduler.ts", "SimulationEngine.ts", "Agree"]}
+                        rows={comparisons.map(c => [
+                            c.label,
+                            c.a.toLocaleString("en-US"),
+                            c.b.toLocaleString("en-US"),
+                            c.a === c.b ? "yes" : "NO",
+                        ])}
+                    />
+
+                    <p className="mb-4 text-[11px] leading-relaxed text-gray-400">
+                        Wall clock, {result.prodTime} ms against {result.simTime} ms. The simulation engine is slower by
+                        construction, since it suspends a generator and allocates a state snapshot at every step. Time is
+                        not part of the parity claim.
+                    </p>
+
+                    <button
+                        onClick={runCheck}
+                        className="w-full rounded-lg border border-gray-200 bg-white py-2.5 text-xs font-semibold text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-900"
                     >
                         Run again
                     </button>
                 </div>
             )}
-        </div>
+        </Figure>
     );
 };
 
-// --- Nav structure ---
+// --- Navigation ---
 
 const TAB_GROUPS = [
-    { label: "Overview",        ids: ["introduction"] },
-    { label: "Getting Started", ids: ["guide", "glossary"] },
-    { label: "Algorithm",       ids: ["math", "complexity", "dfs"] },
-    { label: "Architecture",    ids: ["gap", "parity"] },
-    { label: "Reference",       ids: ["data"] },
-    { label: "Closing",         ids: ["conclusion"] },
+    { label: "Overview", ids: ["abstract"] },
+    { label: "Theory", ids: ["preliminaries", "problem", "complexity"] },
+    { label: "Algorithm", ids: ["algorithm", "cost"] },
+    { label: "Practice", ids: ["implementation", "evaluation"] },
+    { label: "Closing", ids: ["related", "limitations", "references"] },
 ];
 
 const ALL_TABS = [
-    { id: "introduction", label: "Introduction" },
-    { id: "guide",        label: "How to Use" },
-    { id: "glossary",     label: "Key Concepts" },
-    { id: "math",         label: "The Mathematics" },
-    { id: "complexity",   label: "Complexity Analysis" },
-    { id: "dfs",          label: "DFS & Pruning" },
-    { id: "gap",          label: "Architectural Divergence" },
-    { id: "parity",       label: "Parity Verification" },
-    { id: "data",         label: "Data Format" },
-    { id: "conclusion",   label: "Conclusion" },
+    { id: "abstract", label: "Abstract" },
+    { id: "preliminaries", label: "1. Preliminaries" },
+    { id: "problem", label: "2. Problem" },
+    { id: "complexity", label: "3. Complexity" },
+    { id: "algorithm", label: "4. Algorithm" },
+    { id: "cost", label: "4.5 Search cost" },
+    { id: "implementation", label: "5. Implementation" },
+    { id: "evaluation", label: "6. Evaluation" },
+    { id: "related", label: "7. Related work" },
+    { id: "limitations", label: "8. Limitations" },
+    { id: "references", label: "9. References" },
 ];
 
-// --- Main Page ---
+const REPO = "https://github.com/this-demir/yu-sync-info/blob/main";
+
+// --- Page ---
 
 export default function Docs() {
-    const [activeSection, setActiveSection] = useState("introduction");
+    const [activeSection, setActiveSection] = useState("abstract");
     const contentRef = useRef<HTMLDivElement>(null);
 
-    // Scrollspy: update active section as user scrolls
     useEffect(() => {
         const observer = new IntersectionObserver(
             (entries) => {
                 for (const entry of entries) {
-                    if (entry.isIntersecting) {
-                        setActiveSection(entry.target.id);
-                    }
+                    if (entry.isIntersecting) setActiveSection(entry.target.id);
                 }
             },
             { rootMargin: "0px 0px -75% 0px", threshold: 0 }
@@ -403,347 +357,856 @@ export default function Docs() {
     }, []);
 
     const scrollTo = (id: string) => {
-        const el = document.getElementById(id);
-        if (!el) return;
-        // offset by navbar height (56px) + a little breathing room
-        const top = el.getBoundingClientRect().top + window.scrollY - 72;
-        window.scrollTo({ top, behavior: "smooth" });
+        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
     };
 
+    const scaling = RESULTS.scaling;
+    const pruning = RESULTS.pruning;
+    const micro = RESULTS.microbench;
+    const phase = RESULTS.phaseTransition;
+    const env = RESULTS.environment;
+
     return (
-        <div className="w-full min-h-screen bg-white text-gray-900 flex flex-col font-sans selection:bg-purple-200 selection:text-purple-900">
+        <div className="min-h-screen bg-white">
             <Navbar />
 
-            <div className="flex-1 w-full max-w-[1400px] mx-auto flex items-start">
+            <div className="mx-auto max-w-7xl px-6 pt-28">
+                <div className="flex gap-12">
 
-                {/* Sticky Sidebar */}
-                <aside className="w-72 border-r border-gray-100 sticky top-0 h-screen overflow-y-auto shrink-0 py-10 px-8 hidden md:block">
-                    <h3 className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em] mb-6 pl-2">Documentation</h3>
-                    <div className="space-y-6">
+                    {/* Sidebar */}
+                    <aside className="sticky top-28 hidden h-fit w-56 shrink-0 lg:block">
+                        <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-gray-300">Contents</p>
                         {TAB_GROUPS.map(group => (
-                            <div key={group.label}>
-                                <p className="text-[10px] font-bold text-gray-300 uppercase tracking-[0.18em] mb-1.5 pl-2">{group.label}</p>
-                                <ul className="space-y-0.5 relative">
-                                    <div className="absolute left-[3px] top-2 bottom-2 w-px bg-gray-100"></div>
-                                    {group.ids.map(id => {
-                                        const tab = ALL_TABS.find(t => t.id === id)!;
-                                        const isActive = activeSection === id;
-                                        return (
-                                            <li key={id} className="relative">
-                                                {isActive && (
-                                                    <div className="absolute -left-1.5 top-1/2 -translate-y-1/2 w-1.5 h-1.5 bg-black rounded-full z-10"></div>
-                                                )}
-                                                <button
-                                                    onClick={() => scrollTo(id)}
-                                                    className={`w-full text-left pl-6 pr-3 py-1.5 rounded-md text-[13px] font-medium transition-all duration-150 ${isActive ? 'text-black font-semibold' : 'text-gray-500 hover:text-gray-800'}`}
-                                                >
-                                                    {tab.label}
-                                                </button>
-                                            </li>
-                                        );
-                                    })}
-                                </ul>
+                            <div key={group.label} className="mb-5">
+                                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.label}</p>
+                                {group.ids.map(id => {
+                                    const tab = ALL_TABS.find(t => t.id === id)!;
+                                    const active = activeSection === id;
+                                    return (
+                                        <button
+                                            key={id}
+                                            onClick={() => scrollTo(id)}
+                                            className={`block w-full border-l-2 py-1 pl-3 text-left text-[13px] transition-colors ${
+                                                active
+                                                    ? "border-gray-900 font-semibold text-gray-900"
+                                                    : "border-gray-100 text-gray-500 hover:border-gray-300 hover:text-gray-900"
+                                            }`}
+                                        >
+                                            {tab.label}
+                                        </button>
+                                    );
+                                })}
                             </div>
                         ))}
-                    </div>
-                </aside>
 
-                {/* Scrollable Content */}
-                <div ref={contentRef} className="flex-1 px-8 lg:px-24">
-                    <div className="max-w-[700px] py-16">
+                        <a
+                            href={`${REPO}/docs/README.md`}
+                            target="_blank"
+                            rel="noreferrer"
+                            className="mt-4 block rounded-lg border border-gray-200 px-3 py-2.5 text-[11px] leading-relaxed text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-900"
+                        >
+                            <strong className="block text-gray-700">Read the paper</strong>
+                            The full write-up with every proof, in Markdown.
+                        </a>
+                    </aside>
 
-                        {/* ── Introduction ── */}
-                        <section id="introduction" className="pb-20 border-b border-gray-100">
-                            <SectionTitle title="Introduction" subtitle="What this project is, what it demonstrates, and who it is for." />
-                            <div className="prose prose-gray prose-lg max-w-none text-gray-600 leading-loose">
+                    {/* Content */}
+                    <main ref={contentRef} className="min-w-0 flex-1 pb-32">
+
+                        {/* Abstract */}
+                        <section id="abstract" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="0"
+                                title="Section Selection Scheduling"
+                                subtitle="A formal study of the problem YU-Sync solves, and of the search that solves it."
+                                source="docs/00-abstract.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
                                 <p>
-                                    YU-Sync is a student project that makes one question concrete: how does a computer find a valid class schedule without trying every possible combination? The answer involves bitmasks, backtracking, and a deliberate architectural split between speed and visibility. This documentation explains each piece.
+                                    University timetabling, in which rooms, instructors, periods and student groups are
+                                    assigned together, is a long-studied and computationally hard family of problems [1], [6].
+                                    The scheduler studied here does not solve that family. It solves a narrower problem,
+                                    called <strong>Section Selection</strong>. The sections of each course already have
+                                    fixed meeting times, and the task is to choose exactly one section per course so that no
+                                    two chosen sections overlap.
                                 </p>
                                 <p>
-                                    Basic programming familiarity is enough to follow along. Use the sidebar to jump to any section — or simply scroll.
+                                    The narrowing is deliberate. A bounded result that is proved is worth more than a broad
+                                    result that is asserted.
+                                </p>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">Results at a glance</h3>
+                                <DataTable
+                                    headers={["Result", "Value", "How established"]}
+                                    rows={[
+                                        ["Section Selection is NP-complete", "reduction from 3-colouring", "Proved, section 3"],
+                                        ["The engine is sound and complete", "loop invariant", "Proved, section 4"],
+                                        ["Cost peak of the phase transition", `density ${phase.peak!.meanDensity.toFixed(3)}`, "Measured, Experiment 4"],
+                                        ["Half of instances still solvable at", `density ${phase.crossover!.meanDensity.toFixed(3)}`, "Measured, Experiment 4"],
+                                        ["Conflict checks avoided at d = 11", `${(pruning.points[pruning.points.length - 1]!.checkReduction * 100).toFixed(2)}%`, "Measured, Experiment 2"],
+                                        ["Effective branching factor", `${scaling.effectiveBranchingFactor.toFixed(2)} against ${scaling.config.sectionsPerCourse}`, "Measured, Experiment 1"],
+                                    ]}
+                                />
+                            </div>
+                        </section>
+
+                        {/* 1. Preliminaries */}
+                        <section id="preliminaries" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="1"
+                                title="Preliminaries"
+                                subtitle="The objects, the notation, and the encoding every later proof depends on."
+                                source="docs/01-preliminaries.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <p>
+                                    Let <Tex>{"T"}</Tex> be a finite set of time slots, let{" "}
+                                    <Tex>{"C = \\{c_1, \\dots, c_d\\}"}</Tex> be the courses, and let each course{" "}
+                                    <Tex>{"c"}</Tex> offer a set of sections <Tex>{"S(c)"}</Tex> with{" "}
+                                    <Tex>{"b_c = |S(c)|"}</Tex>. Each section <Tex>{"s"}</Tex> carries a mask{" "}
+                                    <Tex>{"\\mu(s) \\subseteq T"}</Tex>, the slots at which it meets. Masks are given as
+                                    input and are never modified. The scheduler never moves a section, it only chooses
+                                    among those that exist.
+                                </p>
+                                <p>
+                                    Fix a total order on <Tex>{"T"}</Tex> and encode a subset as an integer.
+                                </p>
+
+                                <Tex block>
+                                    {String.raw`\beta(M) \;=\; \sum_{i \in M} 2^{i}
+                                    \qquad\Longrightarrow\qquad
+                                    \beta(M \cap N) \;=\; \beta(M) \wedge \beta(N)`}
+                                </Tex>
+
+                                <Claim kind="Proved" title="Proposition 1, the bitmask overlap test">
+                                    For all <Tex>{"M, N \\subseteq T"}</Tex>,{" "}
+                                    <Tex>{"M \\cap N \\neq \\emptyset"}</Tex> if and only if{" "}
+                                    <Tex>{"\\beta(M) \\wedge \\beta(N) \\neq 0"}</Tex>. The map <Tex>{"\\beta"}</Tex> is a
+                                    bijection with <Tex>{"\\beta(\\emptyset) = 0"}</Tex>, so the conjunction vanishes
+                                    exactly when the intersection does.
+                                </Claim>
+
+                                <p>
+                                    The implementation factors the universe by day, writing{" "}
+                                    <Tex>{"T = D \\times P"}</Tex> with seven days of twelve hourly periods from 08:40, so{" "}
+                                    <Tex>{"|T| = 84"}</Tex>. Two activities on different days can never overlap, so the
+                                    test decomposes into a disjunction over days, and in practice iterates only the days a
+                                    section actually meets.
+                                </p>
+                            </div>
+
+                            <BitmaskPlayground />
+                        </section>
+
+                        {/* 2. Problem */}
+                        <section id="problem" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="2"
+                                title="The Problem"
+                                subtitle="Section Selection stated as a decision problem, so the complexity claims are well posed."
+                                source="docs/02-problem-formulation.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <Claim kind="Proved" title="SECTION SELECTION">
+                                    <p className="mb-2">
+                                        <strong>Instance.</strong> A finite slot universe <Tex>{"T"}</Tex>, courses{" "}
+                                        <Tex>{"C"}</Tex>, sections <Tex>{"S(c)"}</Tex> per course, and a mask{" "}
+                                        <Tex>{"\\mu(s)"}</Tex> per section.
+                                    </p>
+                                    <p>
+                                        <strong>Question.</strong> Does a selection <Tex>{"\\sigma"}</Tex> exist, choosing
+                                        one section per course, with{" "}
+                                        <Tex>{"\\mu(\\sigma(c)) \\cap \\mu(\\sigma(c')) = \\emptyset"}</Tex> for every pair
+                                        of distinct courses?
+                                    </p>
+                                </Claim>
+
+                                <p>
+                                    Conflict-freedom is a conjunction of binary constraints over pairs of courses, so this
+                                    is a binary constraint satisfaction problem whose variables are courses, whose domains
+                                    are section sets, and whose constraints are disjointness requirements.
+                                </p>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">Ghost sections</h3>
+                                <p>
+                                    The deployed engine supports something the earlier documentation never mentioned. A
+                                    section marked as a retake is placed with no conflict test and occupies no slot, because
+                                    a student repeating a course may attend it outside the ordinary timetable. Writing{" "}
+                                    <Tex>{"\\Gamma"}</Tex> for the set of such sections, the condition weakens to requiring
+                                    disjointness only among the non-ghost sections chosen.
+                                </p>
+
+                                <div className="not-prose my-8 rounded-xl border border-violet-200 bg-violet-50 p-5">
+                                    <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-violet-700">
+                                        What this costs
+                                    </p>
+                                    <p className="text-[13px] leading-relaxed text-violet-900">
+                                        A returned schedule is conflict-free <em>restricted to non-ghost sections</em>. Two
+                                        ghosts, or a ghost and a real section, may overlap freely. Any claim that the engine
+                                        returns non-overlapping timetables holds only when{" "}
+                                        <Tex>{"\\Gamma = \\emptyset"}</Tex>.
+                                    </p>
+                                </div>
+
+                                <p>
+                                    Ghosts can only make an instance easier, never harder, since a course with a ghost
+                                    section is trivially placeable. The hardness proof in section 3 is therefore stated for{" "}
+                                    <Tex>{"\\Gamma = \\emptyset"}</Tex>, which is the stronger statement.
                                 </p>
                             </div>
                         </section>
 
-                        {/* ── How to Use ── */}
-                        <section id="guide" className="pb-20 border-b border-gray-100">
-                            <SectionTitle title="How to Use" subtitle="A walkthrough of the visualizer controls and what everything means." />
-                            <div className="prose prose-gray prose-lg max-w-none text-gray-600 leading-loose">
-                                <h3 className="text-gray-900 font-bold text-xl mt-10 mb-4 tracking-tight">Controls</h3>
-                                <div className="not-prose space-y-3 my-6">
-                                    {[
-                                        { icon: "▶ / ⏸", label: "Play / Pause",    desc: "Runs the algorithm automatically, advancing one step per tick. Hit again to pause at any point." },
-                                        { icon: "⏭",     label: "Step Forward",    desc: "Manually advance exactly one algorithm step. Use this to follow the logic slowly. Disabled while playing." },
-                                        { icon: "↺",     label: "Reset",           desc: "Clears the tree and restarts the simulation from scratch." },
-                                        { icon: "⚡",     label: "Instant Compute", desc: "Skips the animation entirely and runs the full algorithm at once. The tree and all valid schedules appear immediately." },
-                                        { icon: "━",     label: "Speed slider",    desc: "Controls playback speed from 0.1× (slow motion) to 10× (near-instant). Adjustable while playing." },
-                                    ].map(c => (
-                                        <div key={c.label} className="flex gap-4 bg-gray-50 border border-gray-200 rounded-lg px-5 py-4">
-                                            <span className="font-mono text-lg w-8 shrink-0 text-gray-400 mt-0.5">{c.icon}</span>
-                                            <div>
-                                                <p className="font-semibold text-gray-900 text-sm">{c.label}</p>
-                                                <p className="text-gray-500 text-sm mt-0.5">{c.desc}</p>
-                                            </div>
-                                        </div>
-                                    ))}
-                                </div>
+                        {/* 3. Complexity */}
+                        <section id="complexity" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="3"
+                                title="Complexity"
+                                subtitle="Section Selection is NP-complete, by reduction from graph 3-colouring."
+                                source="docs/03-complexity.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <Claim kind="Proved" title="Theorem 1, membership in NP">
+                                    A selection is a certificate of size linear in the number of courses. Verification
+                                    checks that exactly one section is chosen per course and that all{" "}
+                                    <Tex>{"\\binom{d}{2}"}</Tex> pairs are disjoint, in{" "}
+                                    <Tex>{"O(d \\log d + d^{2}|T|/w)"}</Tex> time.
+                                </Claim>
 
-                                <h3 className="text-gray-900 font-bold text-xl mt-12 mb-4 tracking-tight">Engine Status Badge</h3>
-                                <p>The status badge in the control bar shows the algorithm's current operation:</p>
-                                <div className="not-prose grid grid-cols-2 gap-2 my-6">
-                                    {[
-                                        { state: "INIT",          color: "bg-blue-100 text-blue-700",     desc: "Engine initializing" },
-                                        { state: "SELECTING",     color: "bg-[#e8f3fc] text-[#004B87]",   desc: "Picking a section to try" },
-                                        { state: "BITMASK_CHECK", color: "bg-purple-100 text-purple-700", desc: "Running collision check" },
-                                        { state: "CONFLICT",      color: "bg-rose-100 text-rose-700",     desc: "Overlap detected, pruning" },
-                                        { state: "BACKTRACKING",  color: "bg-orange-100 text-orange-700", desc: "Stepping back up the tree" },
-                                        { state: "SUCCESS",       color: "bg-emerald-100 text-emerald-700", desc: "Valid schedule found" },
-                                        { state: "COMPLETE",      color: "bg-slate-100 text-slate-700",   desc: "All paths exhausted" },
-                                    ].map(s => (
-                                        <div key={s.state} className="flex items-center gap-3 bg-gray-50 border border-gray-200 rounded-md px-3 py-2.5">
-                                            <span className={`text-[10px] font-bold px-2 py-0.5 rounded ${s.color} shrink-0`}>{s.state}</span>
-                                            <span className="text-sm text-gray-500">{s.desc}</span>
-                                        </div>
-                                    ))}
-                                </div>
+                                <p>
+                                    Hardness comes from graph 3-colouring, which is NP-complete [4] and catalogued as
+                                    problem GT4 in Garey and Johnson [2]. Given a graph{" "}
+                                    <Tex>{"G = (V, E)"}</Tex>, build one course per vertex with three sections, one per
+                                    colour, and one slot per pair of an edge and a colour.
+                                </p>
 
-                                <h3 className="text-gray-900 font-bold text-xl mt-12 mb-4 tracking-tight">Reading the Tree</h3>
-                                <ul className="space-y-2 mt-4">
-                                    <li><strong>Each level</strong> represents one course being assigned. Level 1 = first course, level 2 = second, and so on.</li>
-                                    <li><strong>Each node</strong> at a level is a different section of that course the engine tried.</li>
-                                    <li><strong>A path</strong> from root to a leaf = one complete schedule attempt (all courses assigned).</li>
-                                    <li><strong>Node colors:</strong> amber = currently evaluating (pulsing), red = conflict/pruned, green = valid, faded = skipped.</li>
-                                </ul>
+                                <Tex block>
+                                    {String.raw`T = \{\, t_{e,k} : e \in E,\ k \in \{1,2,3\} \,\},
+                                    \qquad
+                                    \mu(s_{v,k}) = \{\, t_{e,k} : e \in E,\ v \in e \,\}`}
+                                </Tex>
+
+                                <p>
+                                    Choosing section <Tex>{"s_{v,k}"}</Tex> means colouring <Tex>{"v"}</Tex> with colour{" "}
+                                    <Tex>{"k"}</Tex>, which claims colour <Tex>{"k"}</Tex> along every edge at{" "}
+                                    <Tex>{"v"}</Tex>. Two endpoints of an edge claiming the same colour collide on exactly
+                                    the slot the construction created for that purpose.
+                                </p>
+
+                                <Claim kind="Proved" title="Theorem 3, NP-completeness">
+                                    The construction is computable in <Tex>{"O(|V| + |E|)"}</Tex> with total mask size{" "}
+                                    <Tex>{"6|E|"}</Tex>. A proper colouring yields a conflict-free selection, and a
+                                    conflict-free selection yields a proper colouring, so{" "}
+                                    <Tex>{"G"}</Tex> is 3-colourable exactly when <Tex>{"I(G)"}</Tex> is satisfiable.
+                                    Combined with Theorem 1, Section Selection is NP-complete.
+                                </Claim>
+                            </div>
+
+                            <ReductionExplorer />
+
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
+                                    What this does not say
+                                </h3>
+                                <p>
+                                    Theorem 3 concerns the general problem, where the slot universe is part of the input.
+                                    The deployed configuration fixes it at <Tex>{"|T| = 84"}</Tex>, and that difference
+                                    matters.
+                                </p>
+
+                                <Claim kind="Proved" title="Proposition 5, the fixed universe caveat">
+                                    For any fixed <Tex>{"\\tau"}</Tex>, the restriction to instances with{" "}
+                                    <Tex>{"|T| \\le \\tau"}</Tex> is solvable in polynomial time. Courses with an
+                                    empty-mask section are placed for free, and every remaining course consumes at least
+                                    one slot, so at most <Tex>{"\\tau"}</Tex> of them can be placed at all. Brute force
+                                    over <Tex>{"b^{\\tau}"}</Tex> combinations is then polynomial for fixed{" "}
+                                    <Tex>{"\\tau"}</Tex>.
+                                    <p className="mt-2">
+                                        The polynomial has degree 84 here, so this is of no practical use. It matters only
+                                        for what may honestly be claimed. Section Selection is NP-complete as a general
+                                        problem, and the deployed instance family is not itself NP-hard.
+                                    </p>
+                                </Claim>
                             </div>
                         </section>
 
-                        {/* ── Key Concepts ── */}
-                        <section id="glossary" className="py-20 border-b border-gray-100">
-                            <SectionTitle title="Key Concepts" subtitle="Plain-language definitions for every term used in this project." />
-                            <div className="not-prose space-y-4">
+                        {/* 4. Algorithm */}
+                        <section id="algorithm" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="4"
+                                title="The Algorithm"
+                                subtitle="Depth-first search with a running mask, proved sound and complete."
+                                source="docs/04-algorithm.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <p>
+                                    Courses are assigned one at a time in a fixed order, maintaining a running mask{" "}
+                                    <Tex>{"W"}</Tex> of the slots already claimed. A candidate is accepted only when it
+                                    claims nothing already taken, and rejection prunes its entire subtree.
+                                </p>
+
+                                <CodeSnippet lang="pseudocode" code={`<span class="text-purple-400">procedure</span> EXTEND(i, W, A)
+    <span class="text-purple-400">if</span> |R| >= k <span class="text-purple-400">then return</span>
+    <span class="text-purple-400">if</span> i > d <span class="text-purple-400">then</span> R := R + {A}; <span class="text-purple-400">return</span>
+
+    <span class="text-purple-400">for each</span> s <span class="text-purple-400">in</span> S(c_i) <span class="text-gray-500 italic">// ordered by ascending |mu(s)|</span>
+        <span class="text-purple-400">if</span> s <span class="text-purple-400">in</span> Ghost <span class="text-purple-400">then</span>
+            EXTEND(i + <span class="text-orange-300">1</span>, W, A + s)          <span class="text-gray-500 italic">// no test, no slots claimed</span>
+        <span class="text-purple-400">else if</span> W <span class="text-yellow-200">AND</span> mu(s) = <span class="text-orange-300">0</span> <span class="text-purple-400">then</span>
+            EXTEND(i + <span class="text-orange-300">1</span>, W <span class="text-yellow-200">OR</span> mu(s), A + s)`} />
+
+                                <p>
+                                    Courses are tried in increasing order of section count, and sections in increasing order
+                                    of mask size. Both are heuristics. Neither is used by any proof, and correctness does
+                                    not depend on either.
+                                </p>
+
+                                <Claim kind="Proved" title="Lemma 4, the loop invariant">
+                                    At every call of <Tex>{"\\mathrm{Extend}(i, W, A)"}</Tex>, the assignment{" "}
+                                    <Tex>{"A"}</Tex> covers exactly <Tex>{"c_1, \\dots, c_{i-1}"}</Tex>, the running mask
+                                    satisfies <Tex>{"W = \\bigcup_{s \\in \\mathrm{real}(A)} \\mu(s)"}</Tex>, and the
+                                    non-ghost sections of <Tex>{"A"}</Tex> are pairwise disjoint. Proved by induction on
+                                    recursion depth, with the branch guard supplying the disjointness of each new pair.
+                                </Claim>
+
+                                <Claim kind="Proved" title="Theorem 4, soundness">
+                                    Every reported selection is conflict-free, restricted to non-ghost sections. At the
+                                    point of reporting, <Tex>{"i = d + 1"}</Tex>, so condition 1 of the invariant makes{" "}
+                                    <Tex>{"A"}</Tex> a selection and condition 3 makes it conflict-free.
+                                </Claim>
+
+                                <Claim kind="Proved" title="Theorem 5, completeness">
+                                    Without a result bound or resource cutoff, every conflict-free selection is reported.
+                                    For any conflict-free <Tex>{"\\sigma"}</Tex>, the guard at depth <Tex>{"i"}</Tex>
+                                    passes for <Tex>{"\\sigma(c_i)"}</Tex>, because every earlier chosen mask is disjoint
+                                    from it. Induction carries the prefix of <Tex>{"\\sigma"}</Tex> all the way to depth{" "}
+                                    <Tex>{"d + 1"}</Tex>.
+                                </Claim>
+
+                                <div className="not-prose my-8 rounded-xl border border-red-200 bg-red-50 p-5">
+                                    <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-red-700">
+                                        The deployed cutoffs break completeness by design
+                                    </p>
+                                    <p className="mb-3 text-[13px] leading-relaxed text-red-900">
+                                        The production engine imposes a result bound of 200, a 1200 ms deadline, a one
+                                        million node cap, and a five million state-space estimate cap. The last returns an
+                                        empty set <em>before searching at all</em>.
+                                    </p>
+                                    <p className="text-[13px] font-semibold leading-relaxed text-red-900">
+                                        An empty result from the deployed engine is not a proof that no schedule exists.
+                                    </p>
+                                </div>
+                            </div>
+
+                            <InvariantTrace />
+
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <p>
+                                    The <strong>Visualizer</strong> page steps through this traversal on any instance you
+                                    configure. Each node is annotated with its running mask and the conjunction that was
+                                    evaluated there, so conditions 2 and 3 of the invariant can be checked node by node.
+                                </p>
+                            </div>
+                        </section>
+
+                        {/* 4.5 Search cost */}
+                        <section id="cost" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="4.5"
+                                title="Cost of the Search"
+                                subtitle="What the exponential is, and which bound the node counter should be read against."
+                                source="docs/04-algorithm.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <p>
+                                    The engine counts one node per section considered at every depth, so it counts partial
+                                    assignments as well as complete ones. The matching bound is the size of the fully
+                                    expanded tree, not the product of the section counts.
+                                </p>
+
+                                <Tex block>
+                                    {String.raw`N_{\max} \;=\; \sum_{i=1}^{d} \prod_{j \le i} b_{c_j}
+                                    \;=\; \frac{b^{d+1} - b}{b - 1} \;=\; O(b^{d})
+                                    \qquad\text{for uniform } b`}
+                                </Tex>
+
+                                <p>
+                                    The product <Tex>{"\\prod_c b_c"}</Tex> counts only leaves and is smaller. For{" "}
+                                    <Tex>{"b = 4"}</Tex> and <Tex>{"d = 2"}</Tex> it is 16 while the tree holds 20, so
+                                    dividing a node count by the product can give a fraction above one. Conflating the two
+                                    is the error the evaluation had to correct.
+                                </p>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">Cost per node</h3>
+                                <p>
+                                    Each node evaluates one conjunction per meeting day of the candidate, so the deployed
+                                    cost is <Tex>{"O(|D|)"}</Tex>. For a general unfactored universe it is{" "}
+                                    <Tex>{"\\Theta(|T|/w)"}</Tex>. It is <Tex>{"O(1)"}</Tex> only when{" "}
+                                    <Tex>{"|T|"}</Tex> is fixed. Combining,
+                                </p>
+
+                                <Tex block>{String.raw`O\!\left( \frac{b^{d} \cdot |T|}{w} \right)`}</Tex>
+
+                                <p>
+                                    The exponential factor is inherent given Theorem 3. The bitmask encoding acts entirely
+                                    on the polynomial factor.
+                                </p>
+                            </div>
+
+                            <ComplexityExplorer />
+                        </section>
+
+                        {/* 5. Implementation */}
+                        <section id="implementation" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="5"
+                                title="Implementation"
+                                subtitle="Two engines, one algorithm, and a mechanically checked equivalence."
+                                source="docs/05-implementation.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <p>
+                                    The repository contains two realisations of the same algorithm. The production engine is
+                                    an ordinary recursive function that runs to completion in one call. The simulation
+                                    engine is a generator that suspends after each step, so the interface can pause,
+                                    resume and step backwards without perturbing the search.
+                                </p>
+
+                                <CodeSnippet lang="typescript" code={`<span class="text-gray-500 italic">// Production engine, opaque</span>
+<span class="text-purple-400">if</span> (i === groupedMasked.length) {
+    results.<span class="text-yellow-200">push</span>(chosen.<span class="text-yellow-200">slice</span>());
+    <span class="text-purple-400">return</span>;
+}
+
+<span class="text-gray-500 italic">// Simulation engine, transparent</span>
+<span class="text-purple-400">if</span> (i === groupedMasked.length) {
+    foundSchedules.<span class="text-yellow-200">push</span>([...chosen]);
+    <span class="text-purple-400">yield</span> { step: <span class="text-emerald-300">"SUCCESS"</span>, currentMask: w, <span class="text-gray-500 italic">/* ... */</span> };
+    <span class="text-purple-400">return</span>;
+}`} />
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
+                                    Allocation, stated correctly
+                                </h3>
+                                <p>
+                                    The earlier documentation described the traversal as allocation-free. The correct
+                                    statement is narrower. The <em>conflict test</em> allocates nothing, reading the
+                                    running mask and the candidate's precomputed day masks and performing integer
+                                    conjunctions. The <em>traversal</em> allocates twice per accepted candidate, a fresh
+                                    seven-field week mask and a fresh assignment array.
+                                </p>
+
+                                <Tex block>{String.raw`O\!\left( d \cdot |D| + d^{2} \right) \quad\text{live memory along a root-to-leaf path}`}</Tex>
+
+                                <p>
+                                    The persistent style makes backtracking implicit, since an abandoned branch simply drops
+                                    its copies. A mutate-and-undo implementation would reduce this to{" "}
+                                    <Tex>{"O(d + |D|)"}</Tex> at the cost of explicit restoration. The current behaviour is
+                                    recorded as it is, rather than as previously described.
+                                </p>
+
+                                <Claim kind="Measured" title="Theorem 6, engine parity">
+                                    For every input in the tested set, the two engines produce identical schedule sequences
+                                    and perform identical work, measured by nodes visited, branches pruned, depth reached
+                                    and conflict checks executed. This is established by execution over four scenarios in{" "}
+                                    <a href={`${REPO}/app/src/__tests__/EngineParity.test.ts`} target="_blank" rel="noreferrer" className="underline">
+                                        EngineParity.test.ts
+                                    </a>
+                                    , not by any argument over the source. It is a regression barrier, not a proof of
+                                    equivalence for all inputs.
+                                </Claim>
+
+                                <p>
+                                    The risk it guards against is structural. The two engines share no helper functions.
+                                    Each defines its own normalisation, mask construction, population count, fit test and
+                                    placement, and the production engine hardcodes its own copy of the period list rather
+                                    than importing the shared one. A correction applied to one file has no effect on the
+                                    other, and only the test would notice.
+                                </p>
+                            </div>
+
+                            <LiveParityRunner />
+                        </section>
+
+                        {/* 6. Evaluation */}
+                        <section id="evaluation" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="6"
+                                title="Evaluation"
+                                subtitle="Four experiments, seeded and reproducible, with the raw output committed."
+                                source="docs/06-evaluation.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <p>
+                                    Every figure below is imported from the committed experiment output rather than typed
+                                    in. Structural quantities are fully determined by their seeds and reproduce byte for
+                                    byte. Wall-clock measurements are hardware dependent and no claim rests on one. The
+                                    published run used {env.cpu} with {env.logicalCores} logical cores on {env.runtime}.
+                                </p>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
+                                    Experiment 1, scaling in the number of courses
+                                </h3>
+                                <p>
+                                    Sections per course fixed at {scaling.config.sectionsPerCourse}, courses from{" "}
+                                    {scaling.config.minCourses} to {scaling.config.maxCourses},{" "}
+                                    {scaling.config.instancesPerPoint} instances per point, seed {scaling.config.baseSeed}.
+                                    All conflict-free selections are enumerated.
+                                </p>
+
+                                <DataTable
+                                    headers={["d", "Fully expanded tree", "Mean nodes", "Fraction visited", "Mean solutions"]}
+                                    rows={scaling.points
+                                        .filter(p => p.courses % 2 === 0)
+                                        .map(p => [
+                                            p.courses,
+                                            p.worstCaseNodes.toLocaleString("en-US"),
+                                            Math.round(p.meanNodes).toLocaleString("en-US"),
+                                            p.exploredFraction < 0.01 ? p.exploredFraction.toExponential(2) : p.exploredFraction.toFixed(3),
+                                            Math.round(p.meanSolutions).toLocaleString("en-US"),
+                                        ])}
+                                />
+
+                                <Claim kind="Measured" title="Pruning changes the base, not the exponential">
+                                    The fully expanded tree grows with base exactly{" "}
+                                    {scaling.config.sectionsPerCourse}. The measured node count grows with an effective
+                                    base of <strong>{scaling.effectiveBranchingFactor.toFixed(2)}</strong>, taken as the
+                                    geometric mean of successive ratios across the range. The fraction of the tree visited
+                                    falls to{" "}
+                                    {scaling.points[scaling.points.length - 1]!.exploredFraction.toExponential(2)} at{" "}
+                                    <Tex>{`d = ${scaling.config.maxCourses}`}</Tex>. This is a descriptive summary of the
+                                    measured points, not a fitted model, and no confidence interval is claimed.
+                                </Claim>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
+                                    Experiment 2, pruning against uninformed enumeration
+                                </h3>
+                                <p>
+                                    The baseline enumerates the full Cartesian product with no pruning. Both sides count
+                                    one conflict check as one conjunction of one day mask, and both iterate only the days a
+                                    section meets, so the ratio measures pruning rather than how the baseline was written.
+                                </p>
+
+                                <DataTable
+                                    headers={["d", "Naive checks", "DFS checks", "Reduction"]}
+                                    rows={pruning.points.map(p => [
+                                        p.courses,
+                                        Math.round(p.meanNaiveConflictChecks).toLocaleString("en-US"),
+                                        Math.round(p.meanDfsConflictChecks).toLocaleString("en-US"),
+                                        `${(p.checkReduction * 100).toFixed(2)}%`,
+                                    ])}
+                                    highlight={0}
+                                />
+
+                                <Claim kind="Measured" title="Pruning is a net cost at d = 2">
+                                    The highlighted first row is negative and is not an error. The engine tests every
+                                    candidate at depth 0 against an empty mask, and those tests can never fail. At two
+                                    courses and this density there is almost nothing to prune, so the overhead exceeds the
+                                    saving. Pruning becomes profitable from{" "}
+                                    <Tex>{"d = 3"}</Tex> and reaches{" "}
+                                    <strong>{(pruning.points[pruning.points.length - 1]!.checkReduction * 100).toFixed(2)}%</strong>{" "}
+                                    at <Tex>{"d = 11"}</Tex>. The previously documented figure of 80 to 95 percent is not a
+                                    constant of the algorithm.
+                                    <p className="mt-2">
+                                        At every point the experiment asserts that both methods return identical solution
+                                        sets. All {pruning.points.length} points pass.
+                                    </p>
+                                </Claim>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
+                                    Experiment 3, cost of the conflict check
+                                </h3>
+                                <p>
+                                    Two implementations of the same predicate are compared as the slot universe grows, one
+                                    conjoining machine words and one scanning slot by slot. Operands are constructed
+                                    disjoint, since both short-circuit on the first overlap and a conflicting pair would
+                                    measure nothing.
+                                </p>
+
+                                <DataTable
+                                    headers={["Slots", "Words", "Word-wise ns", "Slot-wise ns", "Speedup"]}
+                                    rows={micro.points
+                                        .filter((_, i) => i % 2 === 0 || i === micro.points.length - 1)
+                                        .map(p => [
+                                            p.slots.toLocaleString("en-US"),
+                                            p.words,
+                                            p.wordAndNs.toFixed(2),
+                                            p.slotScanNs.toFixed(1),
+                                            `${p.speedup.toFixed(1)}×`,
+                                        ])}
+                                />
+
+                                <Claim kind="Measured" title="The check is not constant time in general">
+                                    The slot-wise cost converges to about {micro.widest.nsPerSlot.toFixed(2)} ns per slot
+                                    and the word-wise cost to about {micro.widest.nsPerWord.toFixed(2)} ns per word. Both
+                                    settle into a constant cost per unit of work and both perform work linear in{" "}
+                                    <Tex>{"|T|"}</Tex>, differing only in the size of the unit. The measured speedup reaches{" "}
+                                    <strong>{micro.widest.speedup.toFixed(1)}×</strong> at{" "}
+                                    {micro.widest.slots.toLocaleString("en-US")} slots, just below the word size{" "}
+                                    <Tex>{`w = ${micro.wordBits}`}</Tex>, as it must. The deployed seven-day form, where{" "}
+                                    <Tex>{"|T|"}</Tex> is fixed, measures {micro.deployedWeekNs.toFixed(2)} ns and is
+                                    genuinely constant.
+                                </Claim>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
+                                    Experiment 4, the constraint density phase transition
+                                </h3>
+                                <p>
+                                    {phase.config.courses} courses with {phase.config.sectionsPerCourse} sections each,
+                                    sweeping the placement pool across its full range with{" "}
+                                    {phase.config.instancesPerPoint} instances at each of 55 points. The engine is asked for
+                                    one solution, not all of them, because the object of study is the decision problem.
+                                </p>
+
+                                <Claim kind="Measured" title="Easy, hard, easy">
+                                    Cost peaks at density{" "}
+                                    <strong>{phase.peak!.meanDensity.toFixed(3)}</strong> with{" "}
+                                    {Math.round(phase.peak!.meanNodes).toLocaleString("en-US")} mean nodes, which is{" "}
+                                    <strong>{phase.peakOverEasiest.toFixed(0)}×</strong> the cost at the underconstrained
+                                    extreme. The solvability crossover sits at density{" "}
+                                    <strong>{phase.crossover!.meanDensity.toFixed(3)}</strong>, close to but not coincident
+                                    with the peak. This reproduces the pattern described by Cheeseman, Kanefsky and Taylor
+                                    [5].
+                                    <p className="mt-2">
+                                        The median falls away far faster than the mean past the transition, so most
+                                        instances just beyond it are solved almost immediately and the mean is held up by a
+                                        minority of hard ones.
+                                    </p>
+                                </Claim>
+                            </div>
+
+                            <PhaseTransitionRunner />
+
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <p>
+                                    A realistic student timetable sits far to the right of the transition, with a handful of
+                                    courses and sparse conflicts. The deployed engine is fast because its instances are
+                                    easy, not because the problem is easy. That distinction is the practical content of this
+                                    experiment.
+                                </p>
+                            </div>
+                        </section>
+
+                        {/* 7. Related work */}
+                        <section id="related" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="7"
+                                title="Related Work"
+                                subtitle="Where this sits in the literature, and what it deliberately does not engage with."
+                                source="docs/07-related-work.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <h3 className="mb-4 mt-0 text-xl font-bold tracking-tight text-gray-900">
+                                    Timetabling and its complexity
+                                </h3>
+                                <p>
+                                    Automated timetabling has been studied continuously since the 1960s. De Werra's
+                                    introduction [6] gives the standard framing of the field and the graph-theoretic
+                                    formulations that dominate it. The complexity of the general problem was settled by
+                                    Even, Itai and Shamir [1], who proved timetabling NP-complete even under substantial
+                                    restrictions. Their result concerns the full problem, in which meetings must be{" "}
+                                    <em>assigned</em> to periods.
+                                </p>
+                                <p>
+                                    This work sits downstream of that setting. Section Selection takes the assignment as
+                                    already performed by the institution and asks only which of the offered sections a
+                                    single student should take.
+                                </p>
+
+                                <div className="not-prose my-8 rounded-xl border border-gray-200 bg-gray-50 p-5">
+                                    <p className="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
+                                        Why the hardness is proved here rather than cited
+                                    </p>
+                                    <p className="text-[13px] leading-relaxed text-gray-600">
+                                        A hardness result for a general problem says nothing about a restriction of it.
+                                        Section Selection is a strict restriction of timetabling, so [1] cannot be used to
+                                        establish it. That is why{" "}
+                                        <button onClick={() => scrollTo("complexity")} className="underline">
+                                            section 3
+                                        </button>{" "}
+                                        proves the narrower result from first principles. The reverse also holds. Nothing
+                                        proved here says anything about timetabling proper. The two problems share a
+                                        vocabulary and not much else.
+                                    </p>
+                                </div>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
+                                    The framework of NP-completeness
+                                </h3>
+                                <p>
+                                    The apparatus used in section 3 is standard and no new technique is introduced. Cook
+                                    [3] established the existence of NP-complete problems and the method of polynomial-time
+                                    reduction. Karp [4] demonstrated its reach across twenty-one combinatorial problems,
+                                    among them graph colourability, which supplies the source problem for the reduction
+                                    here. Garey and Johnson [2] remains the reference catalogue and records graph{" "}
+                                    <Tex>{"k"}</Tex>-colourability as problem GT4, NP-complete for every fixed{" "}
+                                    <Tex>{"k \\ge 3"}</Tex>.
+                                </p>
+                                <p>
+                                    The interest of the reduction lies entirely in establishing that a specific deployed
+                                    system solves a problem that is genuinely hard, rather than one that merely looks hard.
+                                </p>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
+                                    Constraint satisfaction and phase transitions
+                                </h3>
+                                <p>
+                                    Section Selection is a binary constraint satisfaction problem. Its variables are
+                                    courses, its domains are section sets, and its constraints are pairwise disjointness
+                                    requirements. The algorithm in section 4 is chronological backtracking with a
+                                    consistency check at each assignment, which is the most basic complete method for such
+                                    problems.
+                                </p>
+                                <p>
+                                    Cheeseman, Kanefsky and Taylor [5] observed that for many NP-hard families the
+                                    difficulty of random instances is not uniform across the parameter space.
+                                    Underconstrained instances are easy because solutions are abundant, overconstrained
+                                    ones are easy because unsatisfiability is quickly proved, and the hard instances
+                                    concentrate in a narrow band near where the probability of solubility passes one half.
+                                </p>
+
+                                <Claim kind="Cited" title="What [5] is and is not cited for">
+                                    Experiment 4 reproduces the easy-hard-easy shape, and [5] is cited for the existence
+                                    and shape of that pattern. It is <strong>not</strong> cited for the location of the
+                                    transition in this instance family, which is measured at density{" "}
+                                    {phase.peak!.meanDensity.toFixed(3)} and reported without appeal to the literature, nor
+                                    for the order-parameter account of why the pattern arises, which this work does not
+                                    test.
+                                </Claim>
+
+                                <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
+                                    What this work does not engage with
+                                </h3>
+                                <div className="not-prose space-y-3">
+                                    {[
+                                        {
+                                            t: "Modern constraint solvers",
+                                            d: "The baseline in Experiment 2 is uninformed enumeration, the weakest comparison available. Constraint propagation, conflict-driven learning, restarts and dynamic variable ordering are absent from the engine and from the evaluation. The measured advantage of pruning says nothing about how the engine would fare against a competent solver.",
+                                        },
+                                        {
+                                            t: "Optimisation over feasible schedules",
+                                            d: "Section Selection as posed is a pure satisfaction problem with no objective function, so every conflict-free selection is equally good. Preference handling and soft constraints are a large part of the timetabling literature [6] and are entirely outside this study.",
+                                        },
+                                        {
+                                            t: "Institution-scale scheduling",
+                                            d: "The problem here is per student, with the institutional timetable given. Rooms, instructors, capacities and enrolment limits do not appear in the model at all.",
+                                        },
+                                    ].map(item => (
+                                        <div key={item.t} className="rounded-lg border border-gray-200 bg-white px-5 py-3.5">
+                                            <p className="mb-1 text-sm font-bold tracking-tight text-gray-900">{item.t}</p>
+                                            <p className="text-[13px] leading-relaxed text-gray-600">{item.d}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 8. Limitations */}
+                        <section id="limitations" className="border-b border-gray-100 py-16">
+                            <SectionTitle
+                                number="8"
+                                title="Limitations"
+                                subtitle="What this work does not establish."
+                                source="docs/08-limitations.md"
+                            />
+                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                                <div className="not-prose space-y-3">
+                                    {[
+                                        {
+                                            t: "The problem is narrow",
+                                            d: "Rooms, capacities, instructors, prerequisites, cross-student coordination and exam periods are absent from the model entirely. A returned schedule may place a student in a section that is full.",
+                                        },
+                                        {
+                                            t: "Hardness does not apply to the deployed configuration",
+                                            d: "Theorem 3 assumes an unbounded slot universe. With the universe fixed at 84 the problem is polynomial by Proposition 5, at degree 84. The deployed instance family is not itself NP-hard.",
+                                        },
+                                        {
+                                            t: "Completeness holds only for the unbounded algorithm",
+                                            d: "Four production cutoffs each break Theorem 5. An empty result is not a proof of unsatisfiability, and the state-space cap returns empty without searching.",
+                                        },
+                                        {
+                                            t: "Ghost sections weaken what a schedule means",
+                                            d: "Conflict-freedom is guaranteed only among non-ghost sections. Two ghosts may overlap arbitrarily.",
+                                        },
+                                        {
+                                            t: "Parity is tested, not proved",
+                                            d: "Theorem 6 covers exactly four scenarios. Proving equivalence for all inputs would need a shared implementation or a proof over both sources, and neither is attempted.",
+                                        },
+                                        {
+                                            t: "The experiments use synthetic instances",
+                                            d: "Real timetables are structured, with recurring patterns and deliberately spread section times. There is no claim that they are distributed like the random family used here.",
+                                        },
+                                        {
+                                            t: "The statistical treatment is minimal",
+                                            d: "Ten and five instances per point, no confidence intervals, no variance, no significance tests. Conclusions are drawn only from effects spanning orders of magnitude.",
+                                        },
+                                        {
+                                            t: "The baseline is the weakest available",
+                                            d: "Experiment 2 compares against uninformed enumeration. Nothing here says how the engine would fare against a solver with propagation, learning or dynamic ordering.",
+                                        },
+                                    ].map(item => (
+                                        <div key={item.t} className="rounded-lg border border-gray-200 bg-gray-50 px-5 py-3.5">
+                                            <p className="mb-1 text-sm font-bold tracking-tight text-gray-900">{item.t}</p>
+                                            <p className="text-[13px] leading-relaxed text-gray-600">{item.d}</p>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        </section>
+
+                        {/* 9. References */}
+                        <section id="references" className="py-16">
+                            <SectionTitle
+                                number="9"
+                                title="References"
+                                subtitle="IEEE style. Every entry verified against the publisher record before inclusion."
+                                source="docs/09-references.md"
+                            />
+                            <div className="not-prose space-y-4 text-[13px] leading-relaxed text-gray-600">
                                 {[
-                                    { term: "Constraint Satisfaction Problem (CSP)",   def: "A class of problems where you assign values to variables so that a set of constraints holds. Scheduling is a CSP — the variables are courses, the values are sections, and the constraint is no time overlap between chosen sections." },
-                                    { term: "State-Space Tree",                        def: "A tree where each node represents a partial assignment — some courses picked, some not yet. The root is an empty schedule. Each branch adds one more course. The set of all root-to-leaf paths is the entire search space." },
-                                    { term: "Depth-First Search (DFS)",                def: "A traversal strategy that commits to one choice and follows it as deep as possible before trying alternatives. The engine picks Section 1 of Course A, then Section 1 of Course B, drilling down — rather than exhausting all of Course A's options before touching Course B." },
-                                    { term: "Backtracking",                            def: "When DFS hits a dead end (a conflict), it steps back to the last choice point and tries the next option. This is the recovery mechanism that lets the engine explore the full space without getting stuck." },
-                                    { term: "Pruning",                                 def: "Cutting off an entire subtree the moment a conflict is detected. If Section 1 of Course B collides with the current schedule, every deeper combination containing that node is skipped — potentially eliminating thousands of paths in one check." },
-                                    { term: "Bitmask",                                 def: "An integer used as a compact array of boolean flags. In YU-Sync, each bit represents one 10-minute time slot (12 bits per day, starting 08:40). A '1' means the slot is occupied; '0' means it's free. A full week is 7 such integers." },
-                                    { term: "Bitwise AND — collision detection",        def: "Two bitmasks ANDed together. If the result is non-zero, they share at least one '1' bit — meaning both sections occupy the same time slot. This check is one CPU instruction: O(1)." },
-                                    { term: "Week Mask",                               def: "A record of 7 integers (one per day) encoding which slots are occupied in the current partial schedule. When a section is added, its slots are OR'd in. When a new section is tested, its mask is AND'd against the relevant day to check for conflicts." },
-                                    { term: "Generator Function (function*)",          def: "A JavaScript function that can suspend at a yield statement and resume later from that exact point. Instead of running to completion all at once, it produces one value per .next() call. This is what makes step-by-step visualization possible — each yield emits one algorithm snapshot." },
-                                    { term: "Branching Factor (b)",                   def: "The average number of children a node has in the search tree — equivalently, the average number of sections per course. A higher branching factor means more combinations to explore." },
-                                    { term: "Depth (d)",                              def: "The number of courses being scheduled. The tree's depth equals d. Each level of the tree corresponds to one course commitment." },
-                                ].map(({ term, def }) => (
-                                    <div key={term} className="border border-gray-200 rounded-lg px-6 py-5 bg-white">
-                                        <p className="font-bold text-gray-900 text-sm mb-1.5">{term}</p>
-                                        <p className="text-gray-500 text-sm leading-relaxed">{def}</p>
+                                    { n: 1, t: 'S. Even, A. Itai, and A. Shamir, "On the complexity of timetable and multicommodity flow problems," SIAM Journal on Computing, vol. 5, no. 4, pp. 691–703, 1976.', doi: "10.1137/0205048" },
+                                    { n: 2, t: "M. R. Garey and D. S. Johnson, Computers and Intractability, A Guide to the Theory of NP-Completeness. San Francisco, CA, USA: W. H. Freeman, 1979." },
+                                    { n: 3, t: 'S. A. Cook, "The complexity of theorem proving procedures," in Proc. 3rd Annu. ACM Symp. Theory of Computing, 1971, pp. 151–158.', doi: "10.1145/800157.805047" },
+                                    { n: 4, t: 'R. M. Karp, "Reducibility among combinatorial problems," in Complexity of Computer Computations, New York, NY, USA: Plenum Press, 1972, pp. 85–103.', doi: "10.1007/978-1-4684-2001-2_9" },
+                                    { n: 5, t: 'P. Cheeseman, B. Kanefsky, and W. M. Taylor, "Where the really hard problems are," in Proc. 12th Int. Joint Conf. Artificial Intelligence, 1991, pp. 331–337.' },
+                                    { n: 6, t: 'D. de Werra, "An introduction to timetabling," European Journal of Operational Research, vol. 19, no. 2, pp. 151–162, 1985.', doi: "10.1016/0377-2217(85)90167-5" },
+                                ].map(ref => (
+                                    <div key={ref.n} className="flex gap-3">
+                                        <span className="font-mono text-xs font-bold text-gray-400">[{ref.n}]</span>
+                                        <p>
+                                            {ref.t}
+                                            {ref.doi && (
+                                                <>
+                                                    {" "}
+                                                    <a
+                                                        href={`https://doi.org/${ref.doi}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        className="font-mono text-[11px] text-blue-600 underline"
+                                                    >
+                                                        doi:{ref.doi}
+                                                    </a>
+                                                </>
+                                            )}
+                                        </p>
                                     </div>
                                 ))}
                             </div>
-                        </section>
 
-                        {/* ── The Mathematics ── */}
-                        <section id="math" className="py-20 border-b border-gray-100">
-                            <SectionTitle title="Zero-Allocation Bitmasking" subtitle="Applying Boolean Algebra for sub-millisecond collision detection." />
-                            <div className="prose prose-gray prose-lg max-w-none text-gray-600 leading-loose">
-                                <p>The scheduling problem is an NP-Hard Constraint Satisfaction Problem. Traditional loops and object allocations introduce unacceptable garbage collection overhead. Instead, YU-Sync uses pure Boolean Algebra.</p>
-                                <p>We represent the academic week as a 2D matrix, flattened into five discrete 12-bit integers (vectors). Each bit represents a 10-minute time slot.</p>
-                                <p>To detect a collision between a current schedule mask (<code>M</code>) and a target course mask (<code>T</code>), we rely on the CPU's hardware-level bitwise AND operator:</p>
-                                <MathBlock formula="Collision  ⟺  (M ∧ T) ≠ 0" />
-                                <h3 className="text-gray-900 font-bold text-xl mt-12 mb-4 tracking-tight">Example Scenario</h3>
-                                <p>Assume Monday's current schedule (<code>M</code>) has a class from 10:40 to 12:30. Target course (<code>T</code>) wants to place a lab from 11:40 to 13:30.</p>
-                                <div className="pl-4 border-l-2 border-gray-200 my-6 space-y-2 font-mono text-sm text-gray-700 bg-gray-50 py-4 px-6 rounded-r-md">
-                                    <div><span className="font-bold text-gray-900">M</span> = 0000 0011 0000</div>
-                                    <div><span className="font-bold text-gray-900">T</span> = 0000 0110 0000</div>
-                                    <div className="border-t border-gray-300 pt-2 mt-2"><span className="font-bold text-gray-900">M ∧ T</span> = 0000 0010 0000 <span className="text-gray-400 ml-2">(Decimal: 32)</span></div>
-                                </div>
-                                <p>Since <code>32 &gt; 0</code>, the collision is detected instantly without a single memory allocation.</p>
-                                <CodeSnippet lang="typescript" code={`<span class="text-purple-400">for</span> (<span class="text-blue-400">const</span> [i, slotMin] <span class="text-purple-400">of</span> SLOT_STARTS_MIN.<span class="text-yellow-200">entries</span>()) {
-    <span class="text-purple-400">if</span> (slotMin >= startMin && slotMin < endMin) {
-        <span class="text-gray-500 italic">// Apply bitwise OR to push a '1' into the i-th position</span>
-        mask |= (<span class="text-orange-300">1</span> << i);
-    }
-}`} />
-                            </div>
-                        </section>
+                            <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-6">
+                                <p className="mb-2 text-sm font-bold tracking-tight text-gray-900">Reproducing everything</p>
+                                <CodeSnippet lang="bash" code={`<span class="text-gray-500 italic"># regenerate every number and figure</span>
+cd app && npm run bench
 
-                        {/* ── Complexity Analysis ── */}
-                        <section id="complexity" className="py-20 border-b border-gray-100">
-                            <SectionTitle title="Complexity Analysis" subtitle="How many paths exist, and how many pruning eliminates." />
-                            <div className="prose prose-gray prose-lg max-w-none text-gray-600 leading-loose">
-                                <h3 className="text-gray-900 font-bold text-xl mt-0 mb-4 tracking-tight">Time Complexity</h3>
-                                <p>Without pruning, the engine explores every combination of sections across all courses. With <code>b</code> sections per course and <code>d</code> courses, the worst case is:</p>
-                                <MathBlock formula="T(b, d) = O(b^d)  — worst-case nodes visited" />
-                                <p>Each node evaluation is <code>O(1)</code> — a single bitwise AND per day (7 integers). So total cost scales with the number of nodes visited, not the cost per node.</p>
-                                <h3 className="text-gray-900 font-bold text-xl mt-12 mb-4 tracking-tight">Pruning Impact</h3>
-                                <p>A conflict at depth 2 in a 4-course tree with 3 sections eliminates up to <code>3² = 9</code> paths in one check:</p>
-                                <div className="not-prose my-8 overflow-x-auto">
-                                    <table className="w-full text-sm border-collapse">
-                                        <thead>
-                                            <tr className="bg-gray-50 border-b border-gray-200">
-                                                <th className="text-left px-4 py-3 font-semibold text-gray-700">Courses (d)</th>
-                                                <th className="text-left px-4 py-3 font-semibold text-gray-700">Sections each (b)</th>
-                                                <th className="text-left px-4 py-3 font-semibold text-gray-700">Worst case (b^d)</th>
-                                                <th className="text-left px-4 py-3 font-semibold text-gray-700">Typical with pruning</th>
-                                            </tr>
-                                        </thead>
-                                        <tbody className="divide-y divide-gray-100">
-                                            {[
-                                                ["2", "3", "9",      "~4–6"],
-                                                ["4", "3", "81",     "~20–35"],
-                                                ["4", "5", "625",    "~60–120"],
-                                                ["6", "4", "4 096",  "~200–500"],
-                                                ["8", "4", "65 536", "~1 000–5 000"],
-                                            ].map(([d, b, wc, tp]) => (
-                                                <tr key={d + b} className="hover:bg-gray-50 transition-colors">
-                                                    <td className="px-4 py-3 font-mono text-gray-800">{d}</td>
-                                                    <td className="px-4 py-3 font-mono text-gray-800">{b}</td>
-                                                    <td className="px-4 py-3 font-mono text-red-600">{wc}</td>
-                                                    <td className="px-4 py-3 font-mono text-emerald-600">{tp}</td>
-                                                </tr>
-                                            ))}
-                                        </tbody>
-                                    </table>
-                                </div>
-                                <h3 className="text-gray-900 font-bold text-xl mt-12 mb-4 tracking-tight">Space Complexity</h3>
-                                <p>The call stack depth is bounded by <code>d</code>. No extra data structures are allocated during traversal — the week mask is 7 integers reused in-place.</p>
-                                <MathBlock formula="S(d) = O(d)" />
-                                <p>The cost of adding a course is one more stack frame and seven integers — not a copy of the entire schedule.</p>
-                            </div>
-                        </section>
-
-                        {/* ── DFS & Pruning ── */}
-                        <section id="dfs" className="py-20 border-b border-gray-100">
-                            <SectionTitle title="State-Space Traversal" subtitle="Step-by-step navigation of the DFS decision tree." />
-                            <div className="prose prose-gray prose-lg max-w-none text-gray-600 leading-loose">
-                                <p>The engine discovers valid schedules by traversing a state-space tree using Depth-First Search (DFS). The time complexity is bounded by <code>O(b^d)</code>, where <code>b</code> is the branching factor and <code>d</code> is the depth.</p>
-                                <h3 className="text-gray-900 font-bold text-xl mt-12 mb-4 tracking-tight">Tree Walkthrough</h3>
-                                <TreeDiagram />
-                                <ol className="list-decimal list-outside pl-6 space-y-4">
-                                    <li><strong>Selection:</strong> The engine selects Section 1 of <code>CHEM 1130</code>. It shifts to depth <code>d=1</code>.</li>
-                                    <li><strong>Evaluation:</strong> It attempts to attach <code>ENGR 1116</code> (Section 1). The bitwise intersection returns <code>&gt; 0</code>.</li>
-                                    <li><strong>Aggressive Pruning:</strong> The engine immediately drops this branch. Millions of invalid permutations are mathematically eliminated in <code>O(1)</code> time.</li>
-                                    <li><strong>Backtracking:</strong> It steps back and successfully attaches <code>ENGR 1116</code> (Section 2).</li>
-                                </ol>
-                                <CodeSnippet lang="typescript" code={`<span class="text-purple-400">for</span> (<span class="text-blue-400">const</span> opt <span class="text-purple-400">of</span> options) {
-    <span class="text-gray-500 italic">// O(1) Bitmask Intersection Check</span>
-    <span class="text-purple-400">if</span> (!<span class="text-yellow-200">fits</span>(currentWeekMask, opt)) {
-        pruned++;
-        <span class="text-purple-400">continue</span>; <span class="text-gray-500 italic">// Branch is mathematically killed</span>
-    }
-
-    <span class="text-gray-500 italic">// Branch is valid, step deeper into the tree</span>
-    <span class="text-blue-400">const</span> nextMask = <span class="text-yellow-200">place</span>(currentWeekMask, opt);
-    <span class="text-yellow-200">dfs</span>(depth + <span class="text-orange-300">1</span>, nextMask, [...chosen, opt]);
-}`} />
-                            </div>
-                        </section>
-
-                        {/* ── Architectural Divergence ── */}
-                        <section id="gap" className="py-20 border-b border-gray-100">
-                            <SectionTitle title="The Architectural Divergence" subtitle="Why we abandoned the recursive engine for the UI, and how we froze time." />
-                            <div className="prose prose-gray prose-lg max-w-none text-gray-600 leading-loose">
-                                <p>The production YU-Sync engine (<code>scheduler.ts</code>) is deeply recursive. When invoked, it locks the V8 JavaScript thread, computing the entire <code>O(b^d)</code> tree in ~2 milliseconds.</p>
-                                <p>While perfect for a backend worker, a 2ms execution is impossible to visualize on a DOM. We needed to 'freeze' the compute cycle at 60 FPS without altering the deterministic outcome.</p>
-                                <h3 className="text-gray-900 font-bold text-xl mt-12 mb-4 tracking-tight">The Solution: The Generator Pattern</h3>
-                                <p>Instead of using standard functions, we wrapped the exact same DFS bitmasking logic inside a JavaScript Generator (<code>function*</code>). By replacing synchronous state mutations with <code>yield</code> statements, we decouple the calculation from the execution pipeline.</p>
-                                <ul className="bg-gray-50 border border-gray-200 rounded-lg p-6 space-y-4 my-8 list-none !pl-6">
-                                    <li className="relative pl-6">
-                                        <span className="absolute left-0 top-2.5 w-2 h-2 rounded-full bg-gray-400"></span>
-                                        <strong>Production Engine:</strong> <code>O(1)</code> space overhead per stack frame. Fast, but opaque.
-                                    </li>
-                                    <li className="relative pl-6">
-                                        <span className="absolute left-0 top-2.5 w-2 h-2 rounded-full bg-indigo-500"></span>
-                                        <strong>Simulation Engine:</strong> Yields discrete state objects <code>S_t</code>, allowing external controllers (Zustand) to pause, step, or render the bitmask in real-time.
-                                    </li>
-                                </ul>
-                                <CodeSnippet lang="typescript" code={`<span class="text-gray-500 italic">// Production Engine (Opaque)</span>
-<span class="text-purple-400">if</span> (targetDepthReached) {
-    validSchedules.<span class="text-yellow-200">push</span>([...chosenSchedules]);
-    <span class="text-purple-400">return</span>;
-}
-
-<span class="text-gray-500 italic">// Simulation Engine (Transparent)</span>
-<span class="text-purple-400">if</span> (targetDepthReached) {
-    validSchedules.<span class="text-yellow-200">push</span>([...chosenSchedules]);
-    <span class="text-purple-400">yield</span> {
-        step: <span class="text-green-400">"SUCCESS"</span>,
-        message: <span class="text-green-400">"Found a valid schedule!"</span>,
-        foundSchedules: validSchedules
-    };
-    <span class="text-purple-400">return</span>;
-}`} />
-                            </div>
-                        </section>
-
-                        {/* ── Parity Verification ── */}
-                        <section id="parity" className="py-20 border-b border-gray-100">
-                            <SectionTitle title="Deterministic Parity Verification" subtitle="Proving equality between the synchronous core and the async visualizer." />
-                            <div className="prose prose-gray prose-lg max-w-none text-gray-600 leading-loose">
-                                <p>Different architectures, identical realities. To prove our simulation is a mathematically sound representation of the production algorithm, we run a deterministic parity check.</p>
-                                <p>Click below to execute the <strong>'Industrial Engineering'</strong> dataset (<code>CHEM 1130, ENGR 1116, MATH 1132, SOFL 1102</code>) through both engines simultaneously in your browser.</p>
-                                <LiveParityRunner />
-                            </div>
-                        </section>
-
-                        {/* ── Data Format ── */}
-                        <section id="data" className="pt-20 pb-32">
-                            <SectionTitle title="Data Format" subtitle="The shape of course and section objects the engine expects." />
-                            <div className="prose prose-gray prose-lg max-w-none text-gray-600 leading-loose">
-                                <p>The engine works entirely with flat <code>Section[]</code> arrays — one entry per section, regardless of which course it belongs to. The <code>courseCode</code> field on each section is what the DFS uses to group options at each depth level.</p>
-                                <h3 className="text-gray-900 font-bold text-xl mt-10 mb-4 tracking-tight">TypeScript Interfaces</h3>
-                                <CodeSnippet lang="typescript" code={`<span class="text-purple-400">interface</span> <span class="text-blue-300">DaySlot</span> {
-  day:        <span class="text-green-400">"Monday"</span> | <span class="text-green-400">"Tuesday"</span> | <span class="text-green-400">"Wednesday"</span> | <span class="text-green-400">"Thursday"</span>
-            | <span class="text-green-400">"Friday"</span> | <span class="text-green-400">"Saturday"</span> | <span class="text-green-400">"Sunday"</span>;
-  startTime:  <span class="text-blue-300">string</span>;   <span class="text-gray-500 italic">// "HH:MM" — e.g. "08:40"</span>
-  endTime:    <span class="text-blue-300">string</span>;   <span class="text-gray-500 italic">// "HH:MM" — e.g. "10:30"</span>
-  classroom?: <span class="text-blue-300">string</span>;
-}
-
-<span class="text-purple-400">interface</span> <span class="text-blue-300">Section</span> {
-  courseCode: <span class="text-blue-300">string</span>;   <span class="text-gray-500 italic">// e.g. "CHEM 1130"</span>
-  sectionNo:  <span class="text-blue-300">number</span>;
-  days:       <span class="text-blue-300">DaySlot</span>[];
-  isRetake?:  <span class="text-blue-300">boolean</span>;
-}
-
-<span class="text-purple-400">interface</span> <span class="text-blue-300">Course</span> {
-  courseCode: <span class="text-blue-300">string</span>;
-  courseName: <span class="text-blue-300">string</span>;
-  year:       <span class="text-blue-300">number</span>;
-  semester:   <span class="text-blue-300">string</span>;
-  sections:   <span class="text-blue-300">Section</span>[];
-}`} />
-                                <h3 className="text-gray-900 font-bold text-xl mt-10 mb-4 tracking-tight">Time Slot Grid</h3>
-                                <p>12 one-hour windows starting from 08:40. Each slot maps to one bit in the day's integer mask:</p>
-                                <div className="not-prose grid grid-cols-4 gap-2 my-6">
-                                    {["08:40","09:40","10:40","11:40","12:40","13:40","14:40","15:40","16:40","17:40","18:40","19:40"].map((s, i) => (
-                                        <div key={s} className="bg-gray-50 border border-gray-200 rounded-md px-3 py-2 flex items-center justify-between">
-                                            <span className="font-mono text-xs text-gray-700">{s}</span>
-                                            <span className="font-mono text-[10px] text-gray-400">bit {i}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                            </div>
-                        </section>
-
-                        {/* ── Conclusion ── */}
-                        <section id="conclusion" className="pt-20 pb-32">
-                            <SectionTitle title="Conclusion" subtitle="A brief reflection on what was built and what remains open." />
-                            <div className="prose prose-gray prose-lg max-w-none text-gray-600 leading-loose">
-                                <p>
-                                    This project demonstrates that a problem as familiar as course scheduling contains meaningful algorithmic depth. The bitmask representation reduces a multi-dimensional time conflict check to a single CPU instruction. The generator pattern allows an otherwise opaque recursive search to be paused, inspected, and replayed without altering its outcome. Together, these choices produce a visualizer that is both computationally honest and educationally transparent.
-                                </p>
-                                <p>
-                                    The deterministic parity test confirms that the simulation and the production engine remain in agreement — a property that must be maintained as either component evolves. Any future extension to the scheduling logic should be reflected in both engines simultaneously, with the parity check serving as the verification gate.
-                                </p>
-                                <p>
-                                    This is an open sandbox. The data format is documented, the algorithm is explained, and the source is readable. If something here raised a question or sparked an idea, the visualizer is the best place to continue exploring.
+<span class="text-gray-500 italic"># run the parity and reduction proofs</span>
+cd app && npm run test`} />
+                                <p className="text-[12px] leading-relaxed text-gray-500">
+                                    Structural results reproduce byte for byte from the seeds recorded in each JSON file
+                                    under <code className="font-mono">docs/data</code>. A test asserts that every number
+                                    printed in the evaluation still matches that data.
                                 </p>
                             </div>
                         </section>
-
-                    </div>
+                    </main>
                 </div>
             </div>
         </div>
