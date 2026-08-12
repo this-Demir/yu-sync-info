@@ -1,15 +1,10 @@
 import { useState, useMemo } from "react";
-import { Search, Plus, Trash2, PlayCircle, ChevronDown, ChevronRight } from "lucide-react";
+import { Search, Plus, Trash2, ChevronDown, ChevronRight } from "lucide-react";
 import { useSimulationStore, type CourseData } from "../../store/useSimulationStore";
 import allCoursesData from "../../data/yu_sync_test_courses.json";
 import type { Section } from "../../core/types";
-
-const TEST_SCENARIOS = [
-    { label: "Software Eng (Year 2)", note: "Wide branching tree.", codes: ["MATH 2261", "SE 2226", "SE 2228", "SE 2230", "SE 2232"] },
-    { label: "Psychology (Year 1)", note: "Standard core, quick resolution.", codes: ["MATH 1114", "PHIL 1100", "PSYC 1020", "PSYC 1102", "SOFL 1102"] },
-    { label: "Industrial Eng (Year 1)", note: "Heavy lab blocks.", codes: ["CHEM 1130", "ENGR 1116", "MATH 1132", "SOFL 1102"] },
-    { label: "The Chaos Edge Case", note: "Cross-semester collision testing. Heavy backtracking.", codes: ["MATH 1131", "SE 2226", "SE 3332", "SE 4458"] }
-];
+import { TEST_SCENARIOS } from "./scenarios";
+import RunButton from "./RunButton";
 
 export default function CourseSelector() {
     const [searchQuery, setSearchQuery] = useState("");
@@ -20,11 +15,14 @@ export default function CourseSelector() {
     const addCourse = useSimulationStore(state => state.addCourse);
     const removeCourse = useSimulationStore(state => state.removeCourse);
     const setCourses = useSimulationStore(state => state.setCourses);
-    const initializeSimulation = useSimulationStore(state => state.initializeSimulation);
+    const run = useSimulationStore(state => state.run);
 
+    // A scenario is a demo shortcut, so it loads and starts in one click rather
+    // than filling the list and leaving the next step to be discovered.
     const loadScenario = (codes: string[]) => {
         const coursesToLoad = (allCoursesData as CourseData[]).filter(c => codes.includes(c.courseCode));
         setCourses(coursesToLoad);
+        run();
     };
 
     // Raw search logic matching YU-Sync parity
@@ -58,17 +56,14 @@ export default function CourseSelector() {
         <div className="flex flex-col h-full overflow-hidden bg-white text-gray-900 font-sans">
             {/* Header / Pool Area */}
             <div className="p-4 border-b border-gray-200 shrink-0 bg-white z-10 sticky top-0">
-                <div className="flex justify-between items-center mb-4 border-b border-gray-100 pb-2">
-                    <h2 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">Simulation Pool</h2>
-                    {selectedCourses.length > 0 && (
-                        <button
-                            onClick={initializeSimulation}
-                            className="flex items-center gap-1.5 bg-gray-900 hover:bg-black text-white px-2.5 py-1 rounded-md transition-colors text-xs font-medium shadow-sm active:scale-95"
-                        >
-                            <PlayCircle size={14} />
-                            <span>Run Engine</span>
-                        </button>
-                    )}
+                {/* The primary action lives in the footer, not here. It used to be
+                    this row and was hidden until the pool was non-empty, so a first
+                    visit had no call to action anywhere on the page. */}
+                <div className="mb-4 flex items-center justify-between border-b border-gray-100 pb-2">
+                    <h2 className="text-xs font-semibold uppercase tracking-wider text-gray-500">Simulation Pool</h2>
+                    <span className="font-mono text-[10px] text-gray-400">
+                        {selectedCourses.length} selected
+                    </span>
                 </div>
 
                 {/* Test Scenarios Quick Load */}
@@ -102,7 +97,18 @@ export default function CourseSelector() {
             </div>
 
             {/* Scrollable Area */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar flex flex-col">
+            <div className="custom-scrollbar flex flex-1 flex-col overflow-y-auto">
+
+                {/* Empty pool state. Without this the Selected block simply does not
+                    exist, so the pool concept is invisible until something is in it. */}
+                {selectedCourses.length === 0 && (
+                    <div className="border-b border-gray-200 bg-gray-50 px-4 py-5 text-center">
+                        <p className="text-xs font-semibold text-gray-600">Nothing selected yet</p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-gray-400">
+                            Load a test scenario above, or search below and add courses one at a time.
+                        </p>
+                    </div>
+                )}
 
                 {/* Selected Courses Section */}
                 {selectedCourses.length > 0 && (
@@ -201,6 +207,14 @@ export default function CourseSelector() {
                         </div>
                     )}
                 </div>
+            </div>
+
+            {/* The single primary action. This component renders in both the
+                desktop sidebar and the mobile Courses pane, so one footer serves
+                both layouts. It is always present and states the current state,
+                rather than appearing only once the pool is non-empty. */}
+            <div className="shrink-0 border-t border-gray-200 bg-white p-3">
+                <RunButton />
             </div>
         </div>
     );

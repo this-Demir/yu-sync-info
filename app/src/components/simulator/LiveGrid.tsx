@@ -1,5 +1,6 @@
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useSimulationStore } from "../../store/useSimulationStore";
+import { useRunState } from "./runState";
 import { SLOTS, parseHHMM, emptyWeekMask } from "../../core/time";
 import type { DayName, Section } from "../../core/types";
 
@@ -70,6 +71,7 @@ function calculateMaskForSections(sections: Section[]) {
 
 export default function LiveGrid() {
     const { currentState, validSchedules, activeValidScheduleIndex, setActiveSchedule, isPlaying } = useSimulationStore();
+    const { hasInstance } = useRunState();
 
     // Safety fallback
     const step = currentState?.step || "IDLE";
@@ -295,12 +297,31 @@ export default function LiveGrid() {
                 </div>
             </div>
 
-            {/* Legend / Watermark */}
-            <div className="absolute bottom-2 left-4 z-50 pointer-events-none opacity-50">
-                <span className="text-[10px] text-gray-500 font-mono uppercase tracking-widest hidden sm:inline-block">
-                    COLORS DISTINGUISH UNIQUE COURSES • RED HIGHLIGHTS INDICATE BITMASK COLLISIONS
-                </span>
-            </div>
+            {/* Empty state. The bare lattice of zeros is explanatory in itself, so
+                it stays visible behind the prompt rather than being replaced. */}
+            {!hasInstance && (
+                <div className="absolute inset-0 z-40 flex items-center justify-center bg-white/75 px-6 backdrop-blur-[1px]">
+                    <div className="max-w-[260px] text-center">
+                        <p className="text-xs font-bold uppercase tracking-[0.2em] text-gray-400">
+                            No instance loaded
+                        </p>
+                        <p className="mt-2 text-[11px] leading-relaxed text-gray-500">
+                            Every cell is one bit of a day mask. Pick courses and press Run to watch the engine
+                            claim them.
+                        </p>
+                    </div>
+                </div>
+            )}
+
+            {/* Legend / Watermark. Suppressed with no instance, since it would
+                otherwise sit on top of the empty state describing nothing. */}
+            {hasInstance && (
+                <div className="pointer-events-none absolute bottom-2 left-4 z-50 opacity-50">
+                    <span className="hidden font-mono text-[10px] uppercase tracking-widest text-gray-500 sm:inline-block">
+                        COLORS DISTINGUISH UNIQUE COURSES • RED HIGHLIGHTS INDICATE BITMASK COLLISIONS
+                    </span>
+                </div>
+            )}
         </div>
     );
 }

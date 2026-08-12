@@ -1,12 +1,16 @@
 import { useEffect, useState } from "react";
-import { useSimulationStore } from "../store/useSimulationStore";
+import { useSimulationStore, type CourseData } from "../store/useSimulationStore";
 import ControlDeck from "../components/simulator/ControlDeck";
 import LiveGrid from "../components/simulator/LiveGrid";
 import CourseSelector from "../components/simulator/CourseSelector";
 import GraphTree from "../components/simulator/GraphTree";
 import Navbar from "../components/layout/Navbar";
 import Footer from "../components/layout/Footer";
-import { ChevronLeft, Menu } from "lucide-react";
+import RunButton from "../components/simulator/RunButton";
+import { useRunState } from "../components/simulator/runState";
+import { DEFAULT_SCENARIO } from "../components/simulator/scenarios";
+import allCoursesData from "../data/yu_sync_test_courses.json";
+import { AlertTriangle, ChevronLeft, Menu } from "lucide-react";
 
 /** Which panel the phone layout is showing. Ignored at lg and above. */
 type Pane = "courses" | "grid" | "tree";
@@ -28,6 +32,8 @@ export default function Visualizer() {
     // control deck stays pinned underneath, so a run can be driven from any pane.
     const [pane, setPane] = useState<Pane>("grid");
 
+    const { isStale } = useRunState();
+
     // Auto-step logic
     useEffect(() => {
         if (!isPlaying) return;
@@ -37,6 +43,22 @@ export default function Visualizer() {
         }, intervalMs);
         return () => clearInterval(timerId);
     }, [isPlaying, step, speedMultiplier]);
+
+    // A first visit arrives with a running instance rather than a blank screen,
+    // so the page demonstrates itself before the user decides anything. The
+    // guard covers both halves of the state, so navigating away and back never
+    // clobbers a pool the user has edited, including one they emptied.
+    useEffect(() => {
+        const { selectedCourses, sections, setCourses, run } = useSimulationStore.getState();
+        if (selectedCourses.length > 0 || sections.length > 0) return;
+
+        const preset = (allCoursesData as CourseData[])
+            .filter(c => DEFAULT_SCENARIO.codes.includes(c.courseCode));
+        if (preset.length === 0) return;
+
+        setCourses(preset);
+        run();
+    }, []);
 
     return (
         <div className="custom-scrollbar flex w-full min-h-screen flex-col overflow-y-auto bg-[#FAFAFA] font-sans text-gray-900">
@@ -100,6 +122,20 @@ export default function Visualizer() {
                                 })}
                             </div>
                         </div>
+
+                        {/* Staleness. Rendered once, above both layouts, so it is
+                            visible from whichever pane is active on a phone and
+                            over the dashboard on desktop. It deliberately does not
+                            interrupt the run in progress, it only offers to replace it. */}
+                        {isStale && (
+                            <div className="flex shrink-0 items-center gap-3 border-b border-amber-200 bg-amber-50 px-3 py-2 lg:mx-auto lg:w-full lg:max-w-[1600px] lg:border-b-0 lg:px-4 lg:pt-4">
+                                <AlertTriangle size={16} className="shrink-0 text-amber-600" />
+                                <p className="min-w-0 flex-1 text-[11px] leading-snug text-amber-900">
+                                    You changed the courses since this run. What is shown below is the previous instance.
+                                </p>
+                                <RunButton variant="strip" />
+                            </div>
+                        )}
 
                         {/* Single pane below lg. One panel, full width, real height. */}
                         <div className="flex min-h-0 flex-1 flex-col p-3 lg:hidden">

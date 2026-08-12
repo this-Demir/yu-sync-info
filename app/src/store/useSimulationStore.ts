@@ -27,10 +27,28 @@ export interface TreeNode {
     isGhost: boolean;
 }
 
+/**
+ * Identity of a course pool, used to tell whether the live instance still
+ * matches what the user has selected.
+ *
+ * Course codes are enough. A course's section set comes from the bundled
+ * dataset and is never edited, so the codes fully determine the instance the
+ * engine was built from. Sorting makes the comparison order independent.
+ */
+export function poolSignature(courses: CourseData[]): string {
+    return courses.map(c => c.courseCode).sort().join("|");
+}
+
 interface SimulationStore {
     // Data
     sections: Section[];
     selectedCourses: CourseData[];
+    /**
+     * The pool signature `sections` was built from, or null when no instance is
+     * loaded. Comparing it against the current pool is what makes a stale run
+     * visible instead of silently showing results for a different selection.
+     */
+    loadedSignature: string | null;
 
     // Engine State
     generator: Generator<SimulationState, void, unknown> | null;
@@ -53,7 +71,8 @@ interface SimulationStore {
     setCourses: (courses: CourseData[]) => void;
     addCourse: (course: CourseData) => void;
     removeCourse: (courseCode: string) => void;
-    initializeSimulation: () => void;
+    /** Load the current pool into the engine and start stepping through it. */
+    run: () => void;
     setSpeedMultiplier: (speed: number) => void;
 
     // Control Actions
@@ -68,6 +87,7 @@ interface SimulationStore {
 export const useSimulationStore = create<SimulationStore>((set, get) => ({
     sections: [],
     selectedCourses: [],
+    loadedSignature: null,
     generator: null,
     currentState: null,
     treeRoot: null,
@@ -99,12 +119,20 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
         }));
     },
 
-    initializeSimulation: () => {
+    // Loads the pool and starts it. The old initializeSimulation stopped after
+    // reset, leaving the generator parked at INIT with isPlaying false, so a
+    // button labelled Run produced no visible motion and the user had to find
+    // Play separately. One action, one outcome.
+    run: () => {
         const { selectedCourses } = get();
+        if (selectedCourses.length === 0) return;
+
         // Flatten all sections from selected courses
         const allSections = selectedCourses.flatMap(c => c.sections);
         set({ sections: allSections });
-        get().reset(); // Resets the simulation with the new sections
+        get().reset(); // Rebuilds the generator over the new sections
+        set({ loadedSignature: poolSignature(selectedCourses) });
+        get().play();
     },
 
     setSpeedMultiplier: (speed) => set({ speedMultiplier: speed }),
@@ -257,7 +285,14 @@ export const useSimulationStore = create<SimulationStore>((set, get) => ({
     reset: () => {
         const { sections } = get();
         if (sections.length === 0) {
-            set({ generator: null, currentState: null, isPlaying: false, treeRoot: null, activePathIds: [] });
+            set({
+                generator: null,
+                currentState: null,
+                isPlaying: false,
+                treeRoot: null,
+                activePathIds: [],
+                loadedSignature: null,
+            });
             return;
         }
 

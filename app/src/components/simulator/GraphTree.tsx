@@ -36,11 +36,14 @@ export default function GraphTree() {
 
     if (!treeRoot) {
         return (
-            <div className="flex flex-col items-center justify-center h-full w-full bg-slate-50/50 rounded-[16px]">
-                <Network size={48} strokeWidth={1} className="text-slate-300 mb-4" />
-                <span className="opacity-40 text-xs tracking-[0.2em] font-bold uppercase text-slate-500 font-sans">
-                    Waiting for Engine...
+            <div className="flex h-full w-full flex-col items-center justify-center rounded-[16px] bg-slate-50/50 px-6 text-center font-sans">
+                <Network size={48} strokeWidth={1} className="mb-4 text-slate-300" />
+                <span className="text-xs font-bold uppercase tracking-[0.2em] text-slate-400">
+                    No instance loaded
                 </span>
+                <p className="mt-2 max-w-[240px] text-[11px] leading-relaxed text-slate-400">
+                    Pick courses in the Courses panel and press Run. The traversal appears here as it happens.
+                </p>
             </div>
         );
     }

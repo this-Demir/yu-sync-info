@@ -1,5 +1,6 @@
 import { Play, Pause, StepForward, RotateCcw, Zap, Download } from "lucide-react";
 import { useSimulationStore } from "../../store/useSimulationStore";
+import { useRunState } from "./runState";
 import { APP_VERSION } from "../../core/appMeta";
 
 interface ControlDeckProps {
@@ -26,6 +27,12 @@ export default function ControlDeck({ variant = "full" }: ControlDeckProps) {
         sections,
         validSchedules
     } = useSimulationStore();
+
+    // Without an instance the transport actions are silent no-ops. step() returns
+    // early on a null generator and play() bails inside reset(), so the buttons
+    // used to look live and do nothing. They are now disabled and say why.
+    const { hasInstance } = useRunState();
+    const noInstanceHint = "Load courses into the engine first";
 
     const isFinished = currentState?.step === "COMPLETE";
     const statusColor = getStatusColor(currentState?.step);
@@ -102,7 +109,7 @@ export default function ControlDeck({ variant = "full" }: ControlDeckProps) {
                     </div>
                 </div>
                 <div className={`min-w-0 truncate font-mono text-xs text-slate-600 ${compact ? "" : "max-w-full sm:max-w-[60%]"}`}>
-                    {currentState?.message || "Awaiting initialization..."}
+                    {currentState?.message || (hasInstance ? "Ready." : "No instance loaded.")}
                 </div>
             </div>
 
@@ -145,45 +152,48 @@ export default function ControlDeck({ variant = "full" }: ControlDeckProps) {
                 <div className="flex items-center justify-between gap-2 sm:justify-start">
                     <button
                         onClick={isPlaying ? pause : play}
-                        disabled={isFinished}
+                        disabled={isFinished || !hasInstance}
                         className={`${btnPad} rounded-md flex items-center justify-center transition-all duration-200 border
-                            ${isFinished ? 'opacity-50 cursor-not-allowed border-gray-200 bg-slate-50 text-slate-400' : 'bg-white hover:bg-gray-100 active:scale-95'}
-                            ${!isFinished && isPlaying ? 'border-amber-200 text-amber-600' : ''}
-                            ${!isFinished && !isPlaying ? 'border-gray-200 text-gray-700' : ''}
+                            ${isFinished || !hasInstance ? 'opacity-50 cursor-not-allowed border-gray-200 bg-slate-50 text-slate-400' : 'bg-white hover:bg-gray-100 active:scale-95'}
+                            ${hasInstance && !isFinished && isPlaying ? 'border-amber-200 text-amber-600' : ''}
+                            ${hasInstance && !isFinished && !isPlaying ? 'border-gray-200 text-gray-700' : ''}
                         `}
-                        title={isPlaying ? "Pause" : "Play"}
+                        title={!hasInstance ? noInstanceHint : isPlaying ? "Pause" : "Play"}
                     >
                         {isPlaying ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
                     </button>
 
                     <button
                         onClick={step}
-                        disabled={isPlaying || isFinished}
+                        disabled={isPlaying || isFinished || !hasInstance}
                         className={`${btnPad} rounded-md flex items-center justify-center transition-all duration-200 border
-                            ${isPlaying || isFinished ? 'opacity-50 cursor-not-allowed border-gray-200 bg-slate-50 text-slate-400' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:scale-95'}
+                            ${isPlaying || isFinished || !hasInstance ? 'opacity-50 cursor-not-allowed border-gray-200 bg-slate-50 text-slate-400' : 'bg-white border-gray-200 text-gray-600 hover:bg-gray-100 hover:text-gray-900 active:scale-95'}
                         `}
-                        title="Step Forward"
+                        title={!hasInstance ? noInstanceHint : "Step Forward"}
                     >
                         <StepForward size={20} />
                     </button>
 
                     <button
                         onClick={reset}
-                        className={`${btnPad} ml-2 flex items-center justify-center rounded-md border border-gray-200 bg-white text-rose-500 transition-all duration-200 hover:bg-gray-100 active:scale-95`}
-                        title="Reset Simulation"
+                        disabled={!hasInstance}
+                        className={`${btnPad} ml-2 flex items-center justify-center rounded-md border transition-all duration-200
+                            ${!hasInstance ? 'cursor-not-allowed border-gray-200 bg-slate-50 text-slate-400 opacity-50' : 'border-gray-200 bg-white text-rose-500 hover:bg-gray-100 active:scale-95'}
+                        `}
+                        title={!hasInstance ? noInstanceHint : "Reset Simulation"}
                     >
                         <RotateCcw size={20} />
                     </button>
 
                     <button
                         onClick={instantCompute}
-                        disabled={isFinished}
+                        disabled={isFinished || !hasInstance}
                         className={`${btnPad} rounded-md flex items-center justify-center transition-all duration-200 border ml-2
-                            ${isFinished ? 'opacity-50 cursor-not-allowed border-gray-200 bg-slate-50 text-slate-400' : 'bg-white border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 active:scale-95'}
+                            ${isFinished || !hasInstance ? 'opacity-50 cursor-not-allowed border-gray-200 bg-slate-50 text-slate-400' : 'bg-white border-indigo-200 text-indigo-600 hover:bg-indigo-50 hover:border-indigo-300 active:scale-95'}
                         `}
-                        title="Instant Compute"
+                        title={!hasInstance ? noInstanceHint : "Instant Compute"}
                     >
-                        <Zap size={20} className={!isFinished ? "fill-current" : ""} />
+                        <Zap size={20} className={hasInstance && !isFinished ? "fill-current" : ""} />
                     </button>
 
                     <button
