@@ -91,7 +91,7 @@ export default function ComplexityExplorer() {
                             <input
                                 type="range" min={s.min} max={s.max} value={s.value}
                                 onChange={e => s.set(Number(e.target.value))}
-                                className="w-full accent-gray-900"
+                                className="h-6 w-full accent-gray-900"
                             />
                             <p className="mt-0.5 text-[10px] text-gray-400">{s.hint}</p>
                         </div>

@@ -173,7 +173,7 @@ export default function PhaseTransitionRunner() {
                     <input
                         type="range" min={6} max={14} value={courses} disabled={running}
                         onChange={e => setCourses(Number(e.target.value))}
-                        className="w-28 accent-gray-900 disabled:opacity-40"
+                        className="h-6 w-28 accent-gray-900 disabled:opacity-40"
                     />
                 </div>
 
@@ -185,7 +185,7 @@ export default function PhaseTransitionRunner() {
                     <input
                         type="range" min={10} max={200} step={10} value={instances} disabled={running}
                         onChange={e => setInstances(Number(e.target.value))}
-                        className="w-32 accent-gray-900 disabled:opacity-40"
+                        className="h-6 w-32 accent-gray-900 disabled:opacity-40"
                     />
                 </div>
 
@@ -231,11 +231,15 @@ export default function PhaseTransitionRunner() {
                 </div>
             )}
 
+            {/* The charts come out of bench/svg.ts at a fixed 700px, but they carry
+                a viewBox, so they can scale down to a legible floor and scroll only
+                past that. bench/svg.ts is left alone since it also writes the
+                committed figures under docs/. */}
             {chart && (
-                <div className="space-y-3">
-                    <div className="overflow-x-auto" dangerouslySetInnerHTML={{ __html: chart }} />
+                <div className="space-y-3 [&_svg]:h-auto [&_svg]:w-full [&_svg]:min-w-[520px]">
+                    <div className="scroll-hint overflow-x-auto" dangerouslySetInnerHTML={{ __html: chart }} />
                     {solvabilityChart && (
-                        <div className="overflow-x-auto" dangerouslySetInnerHTML={{ __html: solvabilityChart }} />
+                        <div className="scroll-hint overflow-x-auto" dangerouslySetInnerHTML={{ __html: solvabilityChart }} />
                     )}
 
                     <div className="grid gap-2 sm:grid-cols-3">

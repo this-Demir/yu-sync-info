@@ -161,7 +161,7 @@ export default function ReductionExplorer() {
                                 setVertices(n);
                                 setEdges(prev => prev.filter(([u, v]) => u < n && v < n));
                             }}
-                            className="w-24 accent-gray-900"
+                            className="h-6 w-24 accent-gray-900"
                         />
                         <span className="font-mono text-xs font-bold text-gray-900">{vertices}</span>
                     </div>

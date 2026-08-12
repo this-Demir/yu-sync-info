@@ -20,7 +20,7 @@ interface FigureProps {
 export default function Figure({ label, title, claim, source, children, caption }: FigureProps) {
     return (
         <figure className="not-prose my-10 overflow-hidden rounded-xl border border-gray-200 bg-white shadow-sm">
-            <div className="border-b border-gray-100 bg-gray-50 px-5 py-3">
+            <div className="border-b border-gray-100 bg-gray-50 px-4 py-3 sm:px-5">
                 <div className="flex flex-wrap items-baseline gap-x-2.5 gap-y-1">
                     <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">
                         {label}
@@ -34,10 +34,10 @@ export default function Figure({ label, title, claim, source, children, caption 
                 </p>
             </div>
 
-            <div className="p-5">{children}</div>
+            <div className="p-4 sm:p-5">{children}</div>
 
             {caption && (
-                <figcaption className="border-t border-gray-100 px-5 py-3 text-[11px] leading-relaxed text-gray-500">
+                <figcaption className="border-t border-gray-100 px-4 py-3 text-[11px] leading-relaxed text-gray-500 sm:px-5">
                     {caption}
                 </figcaption>
             )}

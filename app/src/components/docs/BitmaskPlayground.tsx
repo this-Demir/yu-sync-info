@@ -87,12 +87,17 @@ export default function BitmaskPlayground() {
                 ))}
             </div>
 
-            <div className="overflow-x-auto">
-                <div className="min-w-[560px]">
+            {/* The row of twelve bits is the figure. Reflowing it into a grid at
+                a phone width would destroy the thing being demonstrated, so it
+                stays linear and scrolls, with the cells sized for a fingertip. */}
+            <p className="mb-2 text-[10px] text-gray-400 sm:hidden">Scroll sideways for all twelve periods.</p>
+
+            <div className="scroll-hint overflow-x-auto">
+                <div className="min-w-[540px] sm:min-w-[572px]">
                     {/* Period headings */}
-                    <div className="mb-1 flex gap-1 pl-[86px]">
+                    <div className="mb-1 flex gap-1 pl-[60px] sm:pl-[86px]">
                         {SLOTS.map((t, i) => (
-                            <div key={t} className="w-9 text-center">
+                            <div key={t} className="w-10 text-center">
                                 <div className="font-mono text-[9px] leading-none text-gray-400">{t}</div>
                                 <div className="mt-0.5 font-mono text-[9px] leading-none text-gray-300">{i}</div>
                             </div>
@@ -101,7 +106,7 @@ export default function BitmaskPlayground() {
 
                     {rows.map(row => (
                         <div key={row.key} className="mb-1.5 flex items-center gap-1">
-                            <div className="w-[86px] shrink-0 pr-2 text-right">
+                            <div className="w-[60px] shrink-0 pr-2 text-right sm:w-[86px]">
                                 <div className="font-mono text-xs font-bold text-gray-900">{row.label}</div>
                                 <div className="text-[9px] leading-tight text-gray-400">{row.sub}</div>
                             </div>
@@ -111,7 +116,7 @@ export default function BitmaskPlayground() {
                                     onClick={() => toggle(row.key, i)}
                                     aria-pressed={on}
                                     aria-label={`${row.label} period ${SLOTS[i]}`}
-                                    className={`h-9 w-9 rounded border text-[10px] font-bold transition-colors ${
+                                    className={`h-10 w-10 rounded border text-[10px] font-bold transition-colors ${
                                         on
                                             ? `${row.colour} border-transparent text-white`
                                             : "border-gray-200 bg-white text-gray-300 hover:bg-gray-50"
@@ -134,7 +139,7 @@ export default function BitmaskPlayground() {
                             return (
                                 <div
                                     key={i}
-                                    className={`flex h-9 w-9 items-center justify-center rounded border text-[10px] font-bold ${
+                                    className={`flex h-10 w-10 items-center justify-center rounded border text-[10px] font-bold ${
                                         hit
                                             ? "border-transparent bg-red-500 text-white"
                                             : "border-gray-100 bg-gray-50 text-gray-300"

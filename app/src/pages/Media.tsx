@@ -131,10 +131,12 @@ function AssetCard({ asset, tall }: { asset: Asset; tall?: boolean }) {
                     style={{ maxHeight: tall ? 180 : 100 }}
                 />
             </div>
-            <div className="px-4 py-3 flex items-start justify-between gap-2">
-                <div>
-                    <p className="text-sm font-semibold text-gray-900 leading-tight">{asset.label}</p>
-                    <p className="text-[11px] text-gray-400 mt-0.5">{asset.description}</p>
+            {/* At a two-up phone grid the card is about 160px wide, so the label
+                and the download action stack rather than compete for one row. */}
+            <div className="flex flex-col gap-2 px-4 py-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="min-w-0">
+                    <p className="text-sm font-semibold leading-tight text-gray-900">{asset.label}</p>
+                    <p className="mt-0.5 text-[11px] text-gray-400">{asset.description}</p>
                 </div>
                 <DownloadBtn path={asset.path} label={asset.label} />
             </div>
@@ -154,12 +156,12 @@ export default function Media() {
     return (
         <div className="w-full min-h-screen bg-[#FAFAFA] text-gray-900 flex flex-col font-sans">
             <Navbar />
-            <main className="flex-1 w-full max-w-5xl mx-auto px-6 pt-12 pb-24">
+            <main className="mx-auto w-full max-w-5xl flex-1 px-4 pb-24 pt-8 sm:px-6 sm:pt-12">
 
                 {/* Header */}
                 <div className="mb-10 border-b border-gray-200 pb-8">
-                    <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#004B87] mb-2">Media Kit</p>
-                    <h1 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">Assets & Media</h1>
+                    <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.18em] text-[#004B87]">Media Kit</p>
+                    <h1 className="mb-2 text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl">Assets & Media</h1>
                     <p className="text-gray-500 text-sm max-w-xl">
                         Logos, icons, QR codes, and social imagery for YU-Sync.
                     </p>

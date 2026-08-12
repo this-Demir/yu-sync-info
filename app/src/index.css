@@ -25,6 +25,19 @@
         --input: 217.2 32.6% 17.5%;
         --ring: 224.3 76.3% 48%;
         --radius: 0.5rem;
+
+        /* Sticky chrome heights, so pages size against a token rather than
+           repeating the magic number. --nav-h matches the h-14 on Navbar.
+           --tabbar-h is the fixed mobile tab bar plus the home indicator,
+           and collapses to zero at md where the bar is not rendered. */
+        --nav-h: 3.5rem;
+        --tabbar-h: calc(3.75rem + env(safe-area-inset-bottom, 0px));
+    }
+
+    @media (min-width: 768px) {
+        :root {
+            --tabbar-h: 0px;
+        }
     }
 }
 
@@ -36,9 +49,34 @@
     body {
         @apply bg-background text-foreground;
     }
+
+    /* Touch devices otherwise wait out a double-tap-to-zoom window before
+       firing a click, which reads as lag on every control in the simulator. */
+    button,
+    [role="button"],
+    a,
+    input[type="range"] {
+        touch-action: manipulation;
+        -webkit-tap-highlight-color: transparent;
+    }
 }
 
 @layer components {
+    /* Fades the trailing edge of a horizontal scroller so a table or a bit row
+       announces that it continues past the viewport. The fade is dropped once
+       the content has been scrolled to its end. */
+    .scroll-hint {
+        -webkit-mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent 100%);
+        mask-image: linear-gradient(to right, #000 calc(100% - 2rem), transparent 100%);
+    }
+
+    @media (min-width: 1024px) {
+        .scroll-hint {
+            -webkit-mask-image: none;
+            mask-image: none;
+        }
+    }
+
     .panel-title {
         @apply text-[18px] md:text-[19px] font-semibold text-slate-800 tracking-[-0.01em];
     }

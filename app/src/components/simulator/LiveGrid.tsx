@@ -90,24 +90,31 @@ export default function LiveGrid() {
     const isEvaluating = !showValid && (step === "SELECTING" || step === "BITMASK_CHECK" || isConflict);
 
     return (
-        <div className="w-full h-full flex flex-col relative overflow-hidden">
+        // Five day columns plus the time axis cannot hold the bit arithmetic at a
+        // phone width, and that readout is the point of the panel. So the grid
+        // keeps a legible minimum and scrolls inside its parent rather than
+        // compressing away the content.
+        <div className="relative flex h-full w-full min-w-[440px] flex-col overflow-hidden sm:min-w-0">
             {/* Pagination Controls */}
             {validSchedules.length > 0 && (
-                <div className="flex items-center justify-between px-4 py-2 bg-white border-b border-gray-100 shrink-0">
-                    <span className="font-mono text-[10px] text-gray-500 tracking-wider uppercase">Valid Schedules Found</span>
-                    <div className="flex items-center gap-2">
+                <div className="flex shrink-0 items-center justify-between gap-2 border-b border-gray-100 bg-white px-3 py-2 sm:px-4">
+                    <span className="truncate font-mono text-[10px] uppercase tracking-wider text-gray-500">Valid Schedules Found</span>
+                    <div className="flex shrink-0 items-center gap-1 sm:gap-2">
                         <button
                             onClick={() => setActiveSchedule((activeValidScheduleIndex - 1 + validSchedules.length) % validSchedules.length)}
-                            className="p-1 hover:bg-gray-100 rounded-md text-gray-600 transition-colors border border-transparent hover:border-gray-200"
+                            className="rounded-md border border-transparent p-1.5 text-gray-600 transition-colors hover:border-gray-200 hover:bg-gray-100"
+                            aria-label="Previous schedule"
                         >
                             <ChevronLeft size={16} />
                         </button>
-                        <span className="font-mono text-xs text-gray-600 tracking-widest min-w-[140px] text-center uppercase">
-                            Schedule {activeValidScheduleIndex + 1} of {validSchedules.length}
+                        <span className="text-center font-mono text-xs uppercase tracking-widest text-gray-600 sm:min-w-[140px]">
+                            <span className="hidden sm:inline">Schedule {activeValidScheduleIndex + 1} of {validSchedules.length}</span>
+                            <span className="sm:hidden">{activeValidScheduleIndex + 1} / {validSchedules.length}</span>
                         </span>
                         <button
                             onClick={() => setActiveSchedule((activeValidScheduleIndex + 1) % validSchedules.length)}
-                            className="p-1 hover:bg-gray-100 rounded-md text-gray-600 transition-colors border border-transparent hover:border-gray-200"
+                            className="rounded-md border border-transparent p-1.5 text-gray-600 transition-colors hover:border-gray-200 hover:bg-gray-100"
+                            aria-label="Next schedule"
                         >
                             <ChevronRight size={16} />
                         </button>
@@ -117,7 +124,7 @@ export default function LiveGrid() {
 
             {/* Header / Days */}
             <div className="flex border-b border-gray-100 w-full shrink-0">
-                <div className="w-16 border-r border-gray-100 flex items-center justify-center text-[10px] text-gray-400 font-sans tracking-widest bg-white">
+                <div className="flex w-11 items-center justify-center border-r border-gray-100 bg-white font-sans text-[9px] tracking-widest text-gray-400 sm:w-16 sm:text-[10px]">
                     TIME
                 </div>
                 {WEEKDAYS.map(day => {
@@ -145,15 +152,15 @@ export default function LiveGrid() {
                             {/* Decimal Bit Math Display */}
                             <div className="flex flex-col items-center mt-0.5 justify-center h-4">
                                 {!isTestingDay ? (
-                                    <span className="text-xs font-mono text-gray-400">
+                                    <span className="font-mono text-[10px] text-gray-400 sm:text-xs">
                                         [{dayMaskVal}]
                                     </span>
                                 ) : (
-                                    <div className="flex items-center text-xs font-mono whitespace-nowrap bg-white px-1.5 py-[1px] rounded border border-gray-100 shadow-sm">
+                                    <div className="flex items-center whitespace-nowrap rounded border-gray-100 bg-white font-mono text-[10px] shadow-sm sm:border sm:px-1.5 sm:py-[1px] sm:text-xs">
                                         <span className="text-gray-600">{dayMaskVal}</span>
-                                        <span className="text-amber-500/70 mx-0.5">&</span>
+                                        <span className="mx-0.5 text-amber-500/70">&</span>
                                         <span className="text-amber-600">{evalMaskVal}</span>
-                                        <span className="text-gray-400 mx-0.5">=</span>
+                                        <span className="mx-0.5 text-gray-400">=</span>
                                         <span className={`font-semibold ${hasConflict ? 'text-red-600' : 'text-emerald-600'}`}>
                                             {result}
                                         </span>
@@ -169,9 +176,9 @@ export default function LiveGrid() {
             <div className="flex-1 flex w-full relative overflow-hidden bg-white/50 font-mono">
 
                 {/* Time Axis */}
-                <div className="w-16 border-r border-gray-100 bg-white flex flex-col relative z-10 shrink-0">
+                <div className="relative z-10 flex w-11 shrink-0 flex-col border-r border-gray-100 bg-white sm:w-16">
                     {SLOTS.map((time) => (
-                        <div key={time} className="flex-1 flex justify-center text-[10px] text-gray-400 font-sans font-medium items-start px-1 border-b border-gray-100">
+                        <div key={time} className="flex flex-1 items-start justify-center border-b border-gray-100 px-1 font-sans text-[9px] font-medium text-gray-400 sm:text-[10px]">
                             {time}
                         </div>
                     ))}
@@ -245,8 +252,8 @@ export default function LiveGrid() {
                                                 className="absolute left-[2px] right-[2px] rounded-md border border-gray-200 p-1.5 flex flex-col justify-center overflow-hidden text-gray-900 shadow-sm transition-all duration-300 z-20"
                                                 style={{ ...pos, backgroundColor: getSoftColor(section.courseCode) }}
                                             >
-                                                <div className="font-sans text-xs font-semibold tracking-tight truncate leading-none">{section.courseCode}</div>
-                                                <div className="font-mono text-[10px] text-gray-500 mt-0.5">Sec {section.sectionNo}</div>
+                                                <div className="truncate font-sans text-[10px] font-semibold leading-none tracking-tight sm:text-xs">{section.courseCode}</div>
+                                                <div className="mt-0.5 truncate font-mono text-[9px] text-gray-500 sm:text-[10px]">Sec {section.sectionNo}</div>
                                             </div>
                                         );
                                     });
@@ -273,11 +280,11 @@ export default function LiveGrid() {
                                                 className={styleClasses}
                                                 style={pos}
                                             >
-                                                <div className="flex justify-between items-start w-full leading-none">
-                                                    <span className="font-sans text-xs font-semibold tracking-tight truncate">{evalBlock.courseCode}</span>
-                                                    {isConflict && <span className="font-mono text-xs bg-red-100 text-red-600 rounded px-1 border border-red-300">X</span>}
+                                                <div className="flex w-full items-start justify-between gap-1 leading-none">
+                                                    <span className="truncate font-sans text-[10px] font-semibold tracking-tight sm:text-xs">{evalBlock.courseCode}</span>
+                                                    {isConflict && <span className="shrink-0 rounded border border-red-300 bg-red-100 px-1 font-mono text-[10px] text-red-600 sm:text-xs">X</span>}
                                                 </div>
-                                                <div className="font-sans text-[10px] opacity-80 mt-1">Sec {evalBlock.sectionNo}</div>
+                                                <div className="mt-1 truncate font-sans text-[9px] opacity-80 sm:text-[10px]">Sec {evalBlock.sectionNo}</div>
                                             </div>
                                         );
                                     });

@@ -39,13 +39,21 @@ export function Tex({ children, block = false, className = "" }: TexProps) {
     if (block) {
         return (
             <div
-                className={`my-6 overflow-x-auto py-1 text-center ${className}`}
+                className={`scroll-hint my-6 overflow-x-auto py-1 text-center ${className}`}
                 dangerouslySetInnerHTML={{ __html: html }}
             />
         );
     }
 
-    return <span className={className} dangerouslySetInnerHTML={{ __html: html }} />;
+    // KaTeX does not line-break, so a long inline formula would otherwise widen
+    // the whole document and make the page itself scroll sideways. Bounding it
+    // and letting it scroll in place keeps the overflow local to the formula.
+    return (
+        <span
+            className={`inline-block max-w-full overflow-x-auto align-middle ${className}`}
+            dangerouslySetInnerHTML={{ __html: html }}
+        />
+    );
 }
 
 /**
@@ -57,7 +65,7 @@ export function TexPanel({ children, caption }: { children: string; caption?: st
 
     return (
         <div className="my-8 rounded-md border border-gray-200 bg-gray-50 p-5 shadow-sm">
-            <div className="overflow-x-auto text-center" dangerouslySetInnerHTML={{ __html: html }} />
+            <div className="scroll-hint overflow-x-auto text-center" dangerouslySetInnerHTML={{ __html: html }} />
             {caption && (
                 <p className="mt-3 text-center text-[11px] font-medium text-gray-400">{caption}</p>
             )}

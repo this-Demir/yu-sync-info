@@ -19,7 +19,13 @@ function maskUnion(a: Record<DayName, number>, b: Record<DayName, number>): Reco
 export default function GraphTree() {
     const { treeRoot, currentState, validSchedules, activeValidScheduleIndex, activePathIds, isPlaying } = useSimulationStore();
     const scrollRef = useRef<HTMLDivElement>(null);
-    const [showMasks, setShowMasks] = useState(true);
+
+    // The mask annotation carries a row past 500px wide, which on a phone means
+    // every node needs a sideways drag to read. It starts off below lg and on
+    // above it. The toggle works the same either way.
+    const [showMasks, setShowMasks] = useState(
+        () => typeof window === "undefined" || window.matchMedia("(min-width: 1024px)").matches
+    );
 
     // Auto-scroll to bottom as tree grows downward
     useEffect(() => {
@@ -53,15 +59,15 @@ export default function GraphTree() {
     }
 
     return (
-        <div className="flex flex-col h-full bg-white p-5 font-sans">
+        <div className="flex h-full flex-col bg-white p-3 font-sans sm:p-5">
             {/* Header */}
-            <div className="flex items-center gap-2 mb-4 text-slate-800 border-b border-slate-100 pb-3 shrink-0">
-                <Network size={18} className="text-[#004B87]" />
-                <h3 className="text-sm font-bold uppercase tracking-widest text-[#004B87]">State-Space Tree</h3>
+            <div className="mb-4 flex shrink-0 items-center gap-2 border-b border-slate-100 pb-3 text-slate-800">
+                <Network size={18} className="shrink-0 text-[#004B87]" />
+                <h3 className="truncate text-sm font-bold uppercase tracking-widest text-[#004B87]">State-Space Tree</h3>
                 <button
                     onClick={() => setShowMasks(v => !v)}
                     title="Show the running mask W and the candidate mask at each node, so the loop invariant can be checked directly"
-                    className={`ml-auto text-[10px] px-2.5 py-1 rounded-full border font-semibold tracking-wide transition-colors ${
+                    className={`ml-auto shrink-0 rounded-full border px-2.5 py-1 text-[10px] font-semibold tracking-wide transition-colors ${
                         showMasks
                             ? "bg-[#004B87] border-[#004B87] text-white"
                             : "bg-slate-50 border-slate-200 text-slate-500 hover:border-slate-300"
@@ -69,7 +75,7 @@ export default function GraphTree() {
                 >
                     Masks
                 </button>
-                <span className="text-[10px] text-slate-500 bg-slate-50 px-2.5 py-1 rounded-full border border-slate-200 font-semibold tracking-wide">
+                <span className="hidden shrink-0 rounded-full border border-slate-200 bg-slate-50 px-2.5 py-1 text-[10px] font-semibold tracking-wide text-slate-500 sm:inline">
                     DFS Backtracking Search
                 </span>
             </div>
@@ -77,8 +83,8 @@ export default function GraphTree() {
             {/* Tree Container (Pan/Scrollable) */}
             <div
                 ref={scrollRef}
-                className="flex-1 overflow-auto custom-scrollbar relative p-4 bg-gray-50/50 rounded-lg border border-gray-200 shadow-inner"
-                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+                className="custom-scrollbar relative flex-1 overflow-auto rounded-lg border border-gray-200 bg-gray-50/50 p-3 shadow-inner sm:p-4"
+                style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', touchAction: 'pan-x pan-y' }}
             >
                 {/* CSS hack to hide webkit scrollbar but keep scrollability */}
                 <style>{`

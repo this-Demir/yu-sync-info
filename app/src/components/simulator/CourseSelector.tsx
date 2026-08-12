@@ -113,7 +113,7 @@ export default function CourseSelector() {
                         <div className="flex flex-col">
                             {selectedCourses.map(course => (
                                 <div key={course.courseCode} className="flex flex-col border-b border-gray-100 last:border-b-0 bg-white">
-                                    <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 transition-colors group cursor-pointer" onClick={() => toggleExpand(course.courseCode)}>
+                                    <div className="group flex cursor-pointer items-center justify-between px-4 py-3 transition-colors hover:bg-gray-50 lg:py-2" onClick={() => toggleExpand(course.courseCode)}>
                                         <div className="flex items-center gap-3">
                                             {expandedCourses.has(course.courseCode) ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-300" />}
                                             <div className="flex flex-col">
@@ -121,10 +121,13 @@ export default function CourseSelector() {
                                                 <span className="font-mono text-[10px] text-gray-500">{course.sections.length} sections included</span>
                                             </div>
                                         </div>
+                                        {/* Touch has no hover, so the reveal on hover is confined to lg
+                                            and up. Without this the control is unreachable on a phone. */}
                                         <button
                                             onClick={(e) => { e.stopPropagation(); removeCourse(course.courseCode); }}
-                                            className="p-1 rounded text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors opacity-0 group-hover:opacity-100"
+                                            className="rounded p-2 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-600 lg:p-1 lg:opacity-0 lg:group-hover:opacity-100"
                                             title="Remove Course"
+                                            aria-label={`Remove ${course.courseCode}`}
                                         >
                                             <Trash2 size={14} />
                                         </button>
@@ -161,9 +164,9 @@ export default function CourseSelector() {
                         <div className="flex flex-col">
                             {availableCourses.map(course => (
                                 <div key={course.courseCode} className="flex flex-col border-b border-gray-100 last:border-b-0 bg-white transition-colors">
-                                    <div className="flex items-center justify-between px-4 py-2 hover:bg-gray-50 group cursor-pointer" onClick={() => toggleExpand(course.courseCode)}>
+                                    <div className="group flex cursor-pointer items-center justify-between px-4 py-3 hover:bg-gray-50 lg:py-2" onClick={() => toggleExpand(course.courseCode)}>
                                         <div className="flex items-center gap-3">
-                                            {expandedCourses.has(course.courseCode) ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-300 group-hover:text-gray-500 transition-colors" />}
+                                            {expandedCourses.has(course.courseCode) ? <ChevronDown size={14} className="text-gray-500" /> : <ChevronRight size={14} className="text-gray-300 transition-colors group-hover:text-gray-500" />}
                                             <div className="flex flex-col">
                                                 <span className="text-sm font-medium text-gray-900">{course.courseCode}</span>
                                                 <span className="font-mono text-[10px] text-gray-500">{course.sections.length} sections</span>
@@ -171,8 +174,9 @@ export default function CourseSelector() {
                                         </div>
                                         <button
                                             onClick={(e) => { e.stopPropagation(); addCourse(course); }}
-                                            className="px-2 py-1 rounded text-[10px] font-semibold uppercase text-gray-600 bg-white border border-gray-200 hover:border-gray-300 hover:text-gray-900 opacity-0 group-hover:opacity-100 flex items-center gap-1 transition-all shadow-sm"
+                                            className="flex items-center gap-1 rounded border border-gray-200 bg-white px-2.5 py-1.5 text-[10px] font-semibold uppercase text-gray-600 shadow-sm transition-all hover:border-gray-300 hover:text-gray-900 lg:px-2 lg:py-1 lg:opacity-0 lg:group-hover:opacity-100"
                                             title="Add Course"
+                                            aria-label={`Add ${course.courseCode}`}
                                         >
                                             <Plus size={12} />
                                             Add

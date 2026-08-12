@@ -12,6 +12,8 @@ import BitmaskPlayground from "../components/docs/BitmaskPlayground";
 import ReductionExplorer from "../components/docs/ReductionExplorer";
 import ComplexityExplorer from "../components/docs/ComplexityExplorer";
 import PhaseTransitionRunner from "../components/docs/PhaseTransitionRunner";
+import MobileToc from "../components/docs/MobileToc";
+import { ALL_TABS, TAB_GROUPS } from "./docsNav";
 
 // The in-app edition of the write-up under docs/.
 //
@@ -32,13 +34,13 @@ interface RawCourse {
 // --- Shared presentation ---
 
 const SectionTitle = ({ number, title, subtitle, source }: { number: string; title: string; subtitle?: string; source: string }) => (
-    <div className="mb-10">
-        <div className="mb-3 flex items-center gap-3">
+    <div className="mb-8 lg:mb-10">
+        <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1">
             <span className="rounded-md bg-gray-900 px-2 py-0.5 font-mono text-[11px] font-bold text-white">{number}</span>
             <span className="font-mono text-[11px] text-gray-400">{source}</span>
         </div>
-        <h1 className={`text-4xl font-black tracking-tight text-gray-900 ${subtitle ? "mb-3" : ""}`}>{title}</h1>
-        {subtitle && <p className="text-xl font-medium leading-relaxed tracking-tight text-gray-500">{subtitle}</p>}
+        <h1 className={`text-2xl font-black tracking-tight text-gray-900 sm:text-3xl lg:text-4xl ${subtitle ? "mb-3" : ""}`}>{title}</h1>
+        {subtitle && <p className="text-base font-medium leading-relaxed tracking-tight text-gray-500 sm:text-lg lg:text-xl">{subtitle}</p>}
     </div>
 );
 
@@ -73,16 +75,19 @@ const CodeSnippet = ({ code, lang }: { code: string; lang: string }) => {
                     {copied ? 'Copied' : 'Copy'}
                 </button>
             </div>
-            <div className="overflow-x-auto p-5 font-mono text-[13px] leading-relaxed">
+            <div className="overflow-x-auto p-4 font-mono text-[11.5px] leading-relaxed sm:p-5 sm:text-[13px]">
                 <pre><code className="text-gray-300" dangerouslySetInnerHTML={{ __html: code }} /></pre>
             </div>
         </div>
     );
 };
 
+// The wider tables cannot be read at a phone width. Rather than let the columns
+// squash and the headings wrap to three lines, the table keeps a legible
+// minimum and scrolls, with the mask fading its trailing edge to say so.
 const DataTable = ({ headers, rows, highlight }: { headers: string[]; rows: (string | number)[][]; highlight?: number }) => (
-    <div className="not-prose my-8 overflow-x-auto">
-        <table className="w-full border-collapse text-sm">
+    <div className="not-prose scroll-hint my-8 overflow-x-auto">
+        <table className="w-full min-w-[520px] border-collapse text-sm">
             <thead>
                 <tr className="border-b border-gray-200 bg-gray-50">
                     {headers.map(h => (
@@ -304,34 +309,22 @@ const LiveParityRunner = () => {
 
 // --- Navigation ---
 
-const TAB_GROUPS = [
-    { label: "Overview", ids: ["abstract"] },
-    { label: "Theory", ids: ["preliminaries", "problem", "complexity"] },
-    { label: "Algorithm", ids: ["algorithm", "cost"] },
-    { label: "Practice", ids: ["implementation", "evaluation"] },
-    { label: "Closing", ids: ["related", "limitations", "references"] },
-];
-
-const ALL_TABS = [
-    { id: "abstract", label: "Abstract" },
-    { id: "preliminaries", label: "1. Preliminaries" },
-    { id: "problem", label: "2. Problem" },
-    { id: "complexity", label: "3. Complexity" },
-    { id: "algorithm", label: "4. Algorithm" },
-    { id: "cost", label: "4.5 Search cost" },
-    { id: "implementation", label: "5. Implementation" },
-    { id: "evaluation", label: "6. Evaluation" },
-    { id: "related", label: "7. Related work" },
-    { id: "limitations", label: "8. Limitations" },
-    { id: "references", label: "9. References" },
-];
-
 const REPO = "https://github.com/this-Demir/yu-sync-info";
 
 // --- Which section is being read ---
 
-/** Sticky navbar height plus a little air. Everything below this line is being read. */
-const BAND_TOP = 88;
+/**
+ * Height of the sticky chrome plus a little air. Everything below this line is
+ * being read, and a jump target has to land under it.
+ *
+ * Below lg the mobile contents bar sits beneath the navbar and covers a further
+ * 44 pixels, so a single constant would drop every jumped-to heading behind it.
+ */
+function bandTop(): number {
+    const desktop = typeof window !== "undefined"
+        && window.matchMedia("(min-width: 1024px)").matches;
+    return desktop ? 88 : 112;
+}
 
 /**
  * The reading band is the viewport below the header. Attention across it is not
@@ -356,7 +349,8 @@ const BAND_TOP = 88;
  * the one being read.
  */
 function readingPosition(ids: string[]): { id: string; progress: number } {
-    const h = Math.max(1, window.innerHeight - BAND_TOP);
+    const top = bandTop();
+    const h = Math.max(1, window.innerHeight - top);
 
     let bestId = ids[0]!;
     let bestScore = -1;
@@ -366,8 +360,8 @@ function readingPosition(ids: string[]): { id: string; progress: number } {
         if (!el) continue;
         const rect = el.getBoundingClientRect();
 
-        const a = (Math.max(rect.top, BAND_TOP) - BAND_TOP) / h;
-        const b = (Math.min(rect.bottom, BAND_TOP + h) - BAND_TOP) / h;
+        const a = (Math.max(rect.top, top) - top) / h;
+        const b = (Math.min(rect.bottom, top + h) - top) / h;
         if (b <= a) continue; // outside the band, contributes nothing
 
         const score = (b - a) - (b * b - a * a) / 2;
@@ -388,7 +382,7 @@ function readingPosition(ids: string[]): { id: string; progress: number } {
     // How far the reading line has travelled through the winning section.
     const winner = document.getElementById(bestId)?.getBoundingClientRect();
     const progress = winner && winner.height > 0
-        ? Math.min(1, Math.max(0, (BAND_TOP - winner.top) / winner.height))
+        ? Math.min(1, Math.max(0, (top - winner.top) / winner.height))
         : 0;
 
     return { id: bestId, progress };
@@ -460,7 +454,7 @@ export default function Docs() {
 
         // scrollIntoView would put the heading under the sticky navbar.
         window.scrollTo({
-            top: el.getBoundingClientRect().top + window.scrollY - BAND_TOP + 1,
+            top: el.getBoundingClientRect().top + window.scrollY - bandTop() + 1,
             behavior: "smooth",
         });
     };
@@ -475,8 +469,14 @@ export default function Docs() {
         <div className="min-h-screen bg-white">
             <Navbar />
 
-            <div className="mx-auto max-w-7xl px-6 pt-28">
-                <div className="flex gap-12">
+            <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:pt-28">
+                <MobileToc
+                    activeSection={activeSection}
+                    sectionProgress={sectionProgress}
+                    onSelect={scrollTo}
+                />
+
+                <div className="flex pt-6 lg:gap-12 lg:pt-0">
 
                     {/* Sidebar */}
                     <aside className="sticky top-28 hidden h-fit w-56 shrink-0 lg:block">
@@ -531,16 +531,16 @@ export default function Docs() {
                     </aside>
 
                     {/* Content */}
-                    <main ref={contentRef} className="min-w-0 flex-1 pb-32">
+                    <main ref={contentRef} className="min-w-0 flex-1 pb-[calc(6rem+var(--tabbar-h))] lg:pb-32">
                         {/* Abstract */}
-                        <section id="abstract" className="border-b border-gray-100 py-16">
+                        <section id="abstract" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="0"
                                 title="Section Selection Scheduling"
                                 subtitle="A formal study of the problem YU-Sync solves, and of the search that solves it."
                                 source="docs/00-abstract.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <p>
                                     University timetabling, in which rooms, instructors, periods and student groups are
                                     assigned together, is a long-studied and computationally hard family of problems [1], [6].
@@ -570,14 +570,14 @@ export default function Docs() {
                         </section>
 
                         {/* 1. Preliminaries */}
-                        <section id="preliminaries" className="border-b border-gray-100 py-16">
+                        <section id="preliminaries" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="1"
                                 title="Preliminaries"
                                 subtitle="The objects, the notation, and the encoding every later proof depends on."
                                 source="docs/01-preliminaries.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <p>
                                     Let <Tex>{"T"}</Tex> be a finite set of time slots, let{" "}
                                     <Tex>{"C = \\{c_1, \\dots, c_d\\}"}</Tex> be the courses, and let each course{" "}
@@ -618,14 +618,14 @@ export default function Docs() {
                         </section>
 
                         {/* 2. Problem */}
-                        <section id="problem" className="border-b border-gray-100 py-16">
+                        <section id="problem" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="2"
                                 title="The Problem"
                                 subtitle="Section Selection stated as a decision problem, so the complexity claims are well posed."
                                 source="docs/02-problem-formulation.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <Claim kind="Proved" title="SECTION SELECTION">
                                     <p className="mb-2">
                                         <strong>Instance.</strong> A finite slot universe <Tex>{"T"}</Tex>, courses{" "}
@@ -676,14 +676,14 @@ export default function Docs() {
                         </section>
 
                         {/* 3. Complexity */}
-                        <section id="complexity" className="border-b border-gray-100 py-16">
+                        <section id="complexity" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="3"
                                 title="Complexity"
                                 subtitle="Section Selection is NP-complete, by reduction from graph 3-colouring."
                                 source="docs/03-complexity.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <Claim kind="Proved" title="Theorem 1, membership in NP">
                                     A selection is a certificate of size linear in the number of courses. Verification
                                     checks that exactly one section is chosen per course and that all{" "}
@@ -722,7 +722,7 @@ export default function Docs() {
 
                             <ReductionExplorer />
 
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <h3 className="mb-4 mt-12 text-xl font-bold tracking-tight text-gray-900">
                                     What this does not say
                                 </h3>
@@ -749,14 +749,14 @@ export default function Docs() {
                         </section>
 
                         {/* 4. Algorithm */}
-                        <section id="algorithm" className="border-b border-gray-100 py-16">
+                        <section id="algorithm" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="4"
                                 title="The Algorithm"
                                 subtitle="Depth-first search with a running mask, proved sound and complete."
                                 source="docs/04-algorithm.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <p>
                                     Courses are assigned one at a time in a fixed order, maintaining a running mask{" "}
                                     <Tex>{"W"}</Tex> of the slots already claimed. A candidate is accepted only when it
@@ -818,7 +818,7 @@ export default function Docs() {
 
                             <InvariantTrace />
 
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <p>
                                     The <strong>Visualizer</strong> page steps through this traversal on any instance you
                                     configure. Each node is annotated with its running mask and the conjunction that was
@@ -828,14 +828,14 @@ export default function Docs() {
                         </section>
 
                         {/* 4.5 Search cost */}
-                        <section id="cost" className="border-b border-gray-100 py-16">
+                        <section id="cost" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="4.5"
                                 title="Cost of the Search"
                                 subtitle="What the exponential is, and which bound the node counter should be read against."
                                 source="docs/04-algorithm.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <p>
                                     The engine counts one node per section considered at every depth, so it counts partial
                                     assignments as well as complete ones. The matching bound is the size of the fully
@@ -875,14 +875,14 @@ export default function Docs() {
                         </section>
 
                         {/* 5. Implementation */}
-                        <section id="implementation" className="border-b border-gray-100 py-16">
+                        <section id="implementation" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="5"
                                 title="Implementation"
                                 subtitle="Two engines, one algorithm, and a mechanically checked equivalence."
                                 source="docs/05-implementation.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <p>
                                     The repository contains two realisations of the same algorithm. The production engine is
                                     an ordinary recursive function that runs to completion in one call. The simulation
@@ -947,14 +947,14 @@ export default function Docs() {
                         </section>
 
                         {/* 6. Evaluation */}
-                        <section id="evaluation" className="border-b border-gray-100 py-16">
+                        <section id="evaluation" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="6"
                                 title="Evaluation"
                                 subtitle="Four experiments, seeded and reproducible, with the raw output committed."
                                 source="docs/06-evaluation.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <p>
                                     Every figure below is imported from the committed experiment output rather than typed
                                     in. Structural quantities are fully determined by their seeds and reproduce byte for
@@ -1095,7 +1095,7 @@ export default function Docs() {
 
                             <PhaseTransitionRunner />
 
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <p>
                                     A realistic student timetable sits far to the right of the transition, with a handful of
                                     courses and sparse conflicts. The deployed engine is fast because its instances are
@@ -1106,14 +1106,14 @@ export default function Docs() {
                         </section>
 
                         {/* 7. Related work */}
-                        <section id="related" className="border-b border-gray-100 py-16">
+                        <section id="related" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="7"
                                 title="Related Work"
                                 subtitle="Where this sits in the literature, and what it deliberately does not engage with."
                                 source="docs/07-related-work.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <h3 className="mb-4 mt-0 text-xl font-bold tracking-tight text-gray-900">
                                     Timetabling and its complexity
                                 </h3>
@@ -1220,14 +1220,14 @@ export default function Docs() {
                         </section>
 
                         {/* 8. Limitations */}
-                        <section id="limitations" className="border-b border-gray-100 py-16">
+                        <section id="limitations" className="border-b border-gray-100 py-10 lg:py-16">
                             <SectionTitle
                                 number="8"
                                 title="Limitations"
                                 subtitle="What this work does not establish."
                                 source="docs/08-limitations.md"
                             />
-                            <div className="prose prose-gray prose-lg max-w-none leading-loose text-gray-600">
+                            <div className="prose prose-gray max-w-none leading-relaxed text-gray-600 lg:prose-lg lg:leading-loose">
                                 <div className="not-prose space-y-3">
                                     {[
                                         {
@@ -1273,7 +1273,7 @@ export default function Docs() {
                         </section>
 
                         {/* 9. References */}
-                        <section id="references" className="py-16">
+                        <section id="references" className="py-10 lg:py-16">
                             <SectionTitle
                                 number="9"
                                 title="References"
