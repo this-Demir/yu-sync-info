@@ -40,7 +40,7 @@ const GENERATED = join(HERE, "..", "src", "bench", "results.generated.ts");
 mkdirSync(DATA, { recursive: true });
 mkdirSync(FIGS, { recursive: true });
 
-// Numbers quoted by the in-app paper are collected here and written as a
+// Numbers quoted by the in-app docs are collected here and written as a
 // TypeScript module at the end of the run. The Docs page imports that module
 // instead of hardcoding figures, so a number shown in the browser and the same
 // number printed in docs/06-evaluation.md always come from one measurement.

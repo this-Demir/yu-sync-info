@@ -4,7 +4,7 @@
 //
 // It produces both the pre-rendered figures committed under docs/figures/ and
 // the live charts on the Docs page. Sharing one renderer is the point: a figure
-// in the paper and its interactive counterpart in the browser are drawn by the
+// in the docs and its interactive counterpart in the browser are drawn by the
 // same code from the same experiment functions, so they cannot disagree about
 // what the data looks like.
 //

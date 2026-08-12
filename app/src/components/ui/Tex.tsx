@@ -4,8 +4,8 @@ import "katex/dist/katex.min.css";
 
 // Typeset mathematics for the Docs page.
 //
-// The Markdown paper under docs/ writes its mathematics in LaTeX, which GitHub
-// renders natively. This component gives the in-app version of the paper the
+// The Markdown docs under docs/ write their mathematics in LaTeX, which GitHub
+// renders natively. This component gives the in-app version of the docs the
 // same notation rather than a monospace approximation of it, so that a formula
 // reads identically in both places.
 //

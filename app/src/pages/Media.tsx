@@ -50,19 +50,19 @@ const APP_ICONS: Asset[] = [
 
 const QR_CODES: Asset[] = [
     {
-        label: "QR Code — Standard",
+        label: "QR Code, Standard",
         path: "/yu-sync-media/yu-sync-qr-480.png",
         bg: "bg-white",
-        description: "480 px — print & web",
+        description: "480 px, print & web",
     },
     {
-        label: "QR Code — Large",
+        label: "QR Code, Large",
         path: "/yu-sync-media/yu-sync-qr-980.png",
         bg: "bg-white",
-        description: "980 px — poster / banner",
+        description: "980 px, poster / banner",
     },
     {
-        label: "QR Code — Inverted",
+        label: "QR Code, Inverted",
         path: "/yu-sync-media/yu-sync-qr-inverted.png",
         bg: "bg-gray-900",
         description: "Dark background variant",
@@ -80,7 +80,7 @@ const SOCIAL: Asset[] = [
         label: "Promo Poster",
         path: "/yu-sync-media/yu-sync-poster-1.jpg",
         bg: "bg-gray-900",
-        description: "Promotional poster — print ready",
+        description: "Promotional poster, print ready",
     },
 ];
 

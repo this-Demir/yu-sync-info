@@ -28,7 +28,7 @@ describe("the documentation page renders", () => {
         expect(html.length).toBeGreaterThan(5000);
     });
 
-    it("carries a section for every numbered part of the paper", () => {
+    it("carries a section for every numbered part of the docs", () => {
         const html = renderToString(<Docs />);
 
         // The Markdown under docs/ is the authoritative document. If a file

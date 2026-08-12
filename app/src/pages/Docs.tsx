@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import Navbar from "../components/layout/Navbar";
+import { useRouteStore } from "../store/useRouteStore";
 import { generateSchedules } from "../core/scheduler";
 import { simulateScheduling } from "../core/SimulationEngine";
 import courseData from "../data/yu_sync_test_courses.json";
@@ -12,7 +13,7 @@ import ReductionExplorer from "../components/docs/ReductionExplorer";
 import ComplexityExplorer from "../components/docs/ComplexityExplorer";
 import PhaseTransitionRunner from "../components/docs/PhaseTransitionRunner";
 
-// The in-app edition of the paper under docs/.
+// The in-app edition of the write-up under docs/.
 //
 // The Markdown files are the authoritative document and are complete without
 // this page. What this page adds is the ability to operate the results rather
@@ -30,37 +31,30 @@ interface RawCourse {
 
 // --- Shared presentation ---
 
-const SectionTitle = ({ number, title, subtitle, source }: { number: string; title: string; subtitle: string; source: string }) => (
+const SectionTitle = ({ number, title, subtitle, source }: { number: string; title: string; subtitle?: string; source: string }) => (
     <div className="mb-10">
         <div className="mb-3 flex items-center gap-3">
             <span className="rounded-md bg-gray-900 px-2 py-0.5 font-mono text-[11px] font-bold text-white">{number}</span>
             <span className="font-mono text-[11px] text-gray-400">{source}</span>
         </div>
-        <h1 className="mb-3 text-4xl font-black tracking-tight text-gray-900">{title}</h1>
-        <p className="text-xl font-medium leading-relaxed tracking-tight text-gray-500">{subtitle}</p>
+        <h1 className={`text-4xl font-black tracking-tight text-gray-900 ${subtitle ? "mb-3" : ""}`}>{title}</h1>
+        {subtitle && <p className="text-xl font-medium leading-relaxed tracking-tight text-gray-500">{subtitle}</p>}
     </div>
 );
 
-/** A stated result, marked with how it is established. */
-const Claim = ({ kind, title, children }: { kind: "Proved" | "Measured" | "Cited"; title: string; children: React.ReactNode }) => {
-    const styles = {
-        Proved: "border-blue-200 bg-blue-50 text-blue-700",
-        Measured: "border-emerald-200 bg-emerald-50 text-emerald-700",
-        Cited: "border-amber-200 bg-amber-50 text-amber-700",
-    }[kind];
-
-    return (
-        <div className="not-prose my-8 rounded-xl border border-gray-200 bg-white p-5 shadow-sm">
-            <div className="mb-2 flex flex-wrap items-center gap-2.5">
-                <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest ${styles}`}>
-                    {kind}
-                </span>
-                <span className="text-sm font-bold tracking-tight text-gray-900">{title}</span>
-            </div>
-            <div className="text-[13px] leading-relaxed text-gray-600">{children}</div>
-        </div>
-    );
-};
+/**
+ * A stated result, marked with how it is established.
+ *
+ * The label is set in the same quiet monospace the section headers use for
+ * their source file, rather than in a coloured pill.
+ */
+const Claim = ({ kind, title, children }: { kind: "Proved" | "Measured" | "Cited"; title: string; children: React.ReactNode }) => (
+    <div className="not-prose my-8 border-l-2 border-gray-200 py-1 pl-5">
+        <p className="mb-1 font-mono text-[11px] lowercase tracking-wide text-gray-400">{kind}</p>
+        <p className="mb-2 text-sm font-bold tracking-tight text-gray-900">{title}</p>
+        <div className="text-[13px] leading-relaxed text-gray-600">{children}</div>
+    </div>
+);
 
 const CodeSnippet = ({ code, lang }: { code: string; lang: string }) => {
     const [copied, setCopied] = useState(false);
@@ -332,32 +326,143 @@ const ALL_TABS = [
     { id: "references", label: "9. References" },
 ];
 
-const REPO = "https://github.com/this-demir/yu-sync-info/blob/main";
+const REPO = "https://github.com/this-Demir/yu-sync-info";
+
+// --- Which section is being read ---
+
+/** Sticky navbar height plus a little air. Everything below this line is being read. */
+const BAND_TOP = 88;
+
+/**
+ * The reading band is the viewport below the header. Attention across it is not
+ * uniform, so a pixel at height y in a band of height h carries the weight
+ *
+ *     w(t) = 1 - t,   t = (y - BAND_TOP) / h,
+ *
+ * which is 1 at the top of the band and 0 at the bottom. A section's score is
+ * that weight integrated over the part of the band it covers. Since w is linear
+ * the integral is closed form: with a and b the clipped section edges in units
+ * of h,
+ *
+ *     S = int_a^b (1 - t) dt = (b - a) - (b^2 - a^2) / 2.
+ *
+ * The greatest score wins. So a short section sitting at the top of the band
+ * beats a long one that is only entering from below, and the highlight never
+ * runs ahead of the reader. Ties go to the earlier section, which is the one
+ * the loop reaches first.
+ *
+ * This replaces asking an IntersectionObserver and taking whichever entry came
+ * last in the callback, which is the section furthest down the page rather than
+ * the one being read.
+ */
+function readingPosition(ids: string[]): { id: string; progress: number } {
+    const h = Math.max(1, window.innerHeight - BAND_TOP);
+
+    let bestId = ids[0]!;
+    let bestScore = -1;
+
+    for (const id of ids) {
+        const el = document.getElementById(id);
+        if (!el) continue;
+        const rect = el.getBoundingClientRect();
+
+        const a = (Math.max(rect.top, BAND_TOP) - BAND_TOP) / h;
+        const b = (Math.min(rect.bottom, BAND_TOP + h) - BAND_TOP) / h;
+        if (b <= a) continue; // outside the band, contributes nothing
+
+        const score = (b - a) - (b * b - a * a) / 2;
+        if (score > bestScore) {
+            bestScore = score;
+            bestId = id;
+        }
+    }
+
+    // At the foot of the document the last sections can no longer reach the top
+    // of the band, so no score would ever select them. Scrolling has stopped
+    // there, so the reader is by definition at the end.
+    const doc = document.documentElement;
+    if (window.scrollY + window.innerHeight >= doc.scrollHeight - 2) {
+        bestId = ids[ids.length - 1]!;
+    }
+
+    // How far the reading line has travelled through the winning section.
+    const winner = document.getElementById(bestId)?.getBoundingClientRect();
+    const progress = winner && winner.height > 0
+        ? Math.min(1, Math.max(0, (BAND_TOP - winner.top) / winner.height))
+        : 0;
+
+    return { id: bestId, progress };
+}
 
 // --- Page ---
 
 export default function Docs() {
+    const navigate = useRouteStore(state => state.navigate);
     const [activeSection, setActiveSection] = useState("abstract");
+    const [sectionProgress, setSectionProgress] = useState(0);
     const contentRef = useRef<HTMLDivElement>(null);
 
+    // A click drives a smooth scroll across every section in between. Scoring
+    // those intermediate frames would strobe the sidebar, so the click sets the
+    // answer and holds it until the scroll settles or the reader takes over.
+    const heldRef = useRef<number | null>(null);
+
     useEffect(() => {
-        const observer = new IntersectionObserver(
-            (entries) => {
-                for (const entry of entries) {
-                    if (entry.isIntersecting) setActiveSection(entry.target.id);
-                }
-            },
-            { rootMargin: "0px 0px -75% 0px", threshold: 0 }
-        );
-        ALL_TABS.forEach(tab => {
-            const el = document.getElementById(tab.id);
-            if (el) observer.observe(el);
-        });
-        return () => observer.disconnect();
+        const ids = ALL_TABS.map(t => t.id);
+        let frame = 0;
+
+        const measure = () => {
+            frame = 0;
+            if (heldRef.current !== null) return;
+            const { id, progress } = readingPosition(ids);
+            setActiveSection(id);
+            setSectionProgress(progress);
+        };
+
+        const onScroll = () => {
+            if (!frame) frame = requestAnimationFrame(measure);
+        };
+
+        // Any deliberate input means the reader has taken the scroll back.
+        const release = () => {
+            if (heldRef.current !== null) {
+                clearTimeout(heldRef.current);
+                heldRef.current = null;
+            }
+        };
+
+        measure();
+        window.addEventListener("scroll", onScroll, { passive: true });
+        window.addEventListener("resize", onScroll);
+        window.addEventListener("wheel", release, { passive: true });
+        window.addEventListener("touchstart", release, { passive: true });
+        window.addEventListener("keydown", release);
+
+        return () => {
+            if (frame) cancelAnimationFrame(frame);
+            window.removeEventListener("scroll", onScroll);
+            window.removeEventListener("resize", onScroll);
+            window.removeEventListener("wheel", release);
+            window.removeEventListener("touchstart", release);
+            window.removeEventListener("keydown", release);
+        };
     }, []);
 
     const scrollTo = (id: string) => {
-        document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+        const el = document.getElementById(id);
+        if (!el) return;
+
+        setActiveSection(id);
+        setSectionProgress(0);
+
+        if (heldRef.current !== null) clearTimeout(heldRef.current);
+        heldRef.current = window.setTimeout(() => { heldRef.current = null; }, 700);
+
+        // scrollIntoView would put the heading under the sticky navbar.
+        window.scrollTo({
+            top: el.getBoundingClientRect().top + window.scrollY - BAND_TOP + 1,
+            behavior: "smooth",
+        });
     };
 
     const scaling = RESULTS.scaling;
@@ -378,7 +483,11 @@ export default function Docs() {
                         <p className="mb-4 text-[10px] font-bold uppercase tracking-widest text-gray-300">Contents</p>
                         {TAB_GROUPS.map(group => (
                             <div key={group.label} className="mb-5">
-                                <p className="mb-1.5 text-[10px] font-bold uppercase tracking-wider text-gray-400">{group.label}</p>
+                                <p className={`mb-1.5 text-[10px] font-bold uppercase tracking-wider transition-colors ${
+                                    group.ids.includes(activeSection) ? "text-gray-900" : "text-gray-400"
+                                }`}>
+                                    {group.label}
+                                </p>
                                 {group.ids.map(id => {
                                     const tab = ALL_TABS.find(t => t.id === id)!;
                                     const active = activeSection === id;
@@ -386,12 +495,23 @@ export default function Docs() {
                                         <button
                                             key={id}
                                             onClick={() => scrollTo(id)}
-                                            className={`block w-full border-l-2 py-1 pl-3 text-left text-[13px] transition-colors ${
-                                                active
-                                                    ? "border-gray-900 font-semibold text-gray-900"
-                                                    : "border-gray-100 text-gray-500 hover:border-gray-300 hover:text-gray-900"
+                                            aria-current={active ? "true" : undefined}
+                                            className={`group relative block w-full py-1 pl-3 text-left text-[13px] transition-colors ${
+                                                active ? "font-semibold text-gray-900" : "text-gray-500 hover:text-gray-900"
                                             }`}
                                         >
+                                            {/* The rule on the left doubles as how far through this section you are. */}
+                                            <span
+                                                aria-hidden
+                                                className="absolute left-0 top-0 h-full w-0.5 bg-gray-100 transition-colors group-hover:bg-gray-300"
+                                            />
+                                            {active && (
+                                                <span
+                                                    aria-hidden
+                                                    className="absolute left-0 top-0 w-0.5 bg-gray-900"
+                                                    style={{ height: `${Math.max(8, sectionProgress * 100)}%` }}
+                                                />
+                                            )}
                                             {tab.label}
                                         </button>
                                     );
@@ -400,19 +520,18 @@ export default function Docs() {
                         ))}
 
                         <a
-                            href={`${REPO}/docs/README.md`}
+                            href={`${REPO}/tree/main/docs#readme`}
                             target="_blank"
                             rel="noreferrer"
                             className="mt-4 block rounded-lg border border-gray-200 px-3 py-2.5 text-[11px] leading-relaxed text-gray-500 transition-colors hover:border-gray-300 hover:text-gray-900"
                         >
-                            <strong className="block text-gray-700">Read the paper</strong>
-                            The full write-up with every proof, in Markdown.
+                            <strong className="block text-gray-700">Read on GitHub</strong>
+                            The same docs in Markdown.
                         </a>
                     </aside>
 
                     {/* Content */}
                     <main ref={contentRef} className="min-w-0 flex-1 pb-32">
-
                         {/* Abstract */}
                         <section id="abstract" className="border-b border-gray-100 py-16">
                             <SectionTitle
@@ -808,7 +927,7 @@ export default function Docs() {
                                     For every input in the tested set, the two engines produce identical schedule sequences
                                     and perform identical work, measured by nodes visited, branches pruned, depth reached
                                     and conflict checks executed. This is established by execution over four scenarios in{" "}
-                                    <a href={`${REPO}/app/src/__tests__/EngineParity.test.ts`} target="_blank" rel="noreferrer" className="underline">
+                                    <a href={`${REPO}/blob/main/app/src/__tests__/EngineParity.test.ts`} target="_blank" rel="noreferrer" className="underline">
                                         EngineParity.test.ts
                                     </a>
                                     , not by any argument over the source. It is a regression barrier, not a proof of
@@ -1158,7 +1277,6 @@ export default function Docs() {
                             <SectionTitle
                                 number="9"
                                 title="References"
-                                subtitle="IEEE style. Every entry verified against the publisher record before inclusion."
                                 source="docs/09-references.md"
                             />
                             <div className="not-prose space-y-4 text-[13px] leading-relaxed text-gray-600">
@@ -1192,18 +1310,19 @@ export default function Docs() {
                                 ))}
                             </div>
 
-                            <div className="mt-12 rounded-xl border border-gray-200 bg-gray-50 p-6">
-                                <p className="mb-2 text-sm font-bold tracking-tight text-gray-900">Reproducing everything</p>
-                                <CodeSnippet lang="bash" code={`<span class="text-gray-500 italic"># regenerate every number and figure</span>
-cd app && npm run bench
-
-<span class="text-gray-500 italic"># run the parity and reduction proofs</span>
-cd app && npm run test`} />
-                                <p className="text-[12px] leading-relaxed text-gray-500">
-                                    Structural results reproduce byte for byte from the seeds recorded in each JSON file
-                                    under <code className="font-mono">docs/data</code>. A test asserts that every number
-                                    printed in the evaluation still matches that data.
-                                </p>
+                            <div className="mt-12 flex flex-col gap-4 rounded-xl border border-gray-200 bg-gray-50 p-6 sm:flex-row sm:items-center sm:justify-between">
+                                <div>
+                                    <p className="mb-1 text-sm font-bold tracking-tight text-gray-900">That is the whole argument</p>
+                                    <p className="text-[13px] leading-relaxed text-gray-500">
+                                        Every step described here runs in the simulator. Pick your own courses and watch it work.
+                                    </p>
+                                </div>
+                                <button
+                                    onClick={() => navigate('simulator')}
+                                    className="shrink-0 rounded-lg bg-gray-900 px-5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-gray-700"
+                                >
+                                    Try it on the simulator
+                                </button>
                             </div>
                         </section>
                     </main>

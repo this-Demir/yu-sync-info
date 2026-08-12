@@ -1,5 +1,4 @@
 import Visualizer from './pages/Visualizer'
-import Landing from './pages/Landing'
 import Docs from './pages/Docs'
 import Media from './pages/Media'
 import { useRouteStore } from './store/useRouteStore'
@@ -10,9 +9,8 @@ function App() {
 
   return (
     <>
-      {currentPage === 'landing' && <Landing />}
-      {currentPage === 'simulator' && <Visualizer />}
       {currentPage === 'docs' && <Docs />}
+      {currentPage === 'simulator' && <Visualizer />}
       {currentPage === 'media' && <Media />}
     </>
   )

@@ -56,4 +56,4 @@ User-agent: *
 Allow: /
 
 
-Sitemap: https://yu-sync.com/sitemap.xml
+Sitemap: https://info.yu-sync.com/sitemap.xml

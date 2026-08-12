@@ -1,52 +1,27 @@
 <div align="center">
   <img src="./app/public/yu-sync-media/blue-logo-bg-removed.png" alt="YU-Sync Logo" width="80" />
-  <h1>YU-Sync · Algorithm Visualizer</h1>
-  <p>Interactive step-by-step visualization of the DFS + bitmask engine that powers conflict-free university scheduling.</p>
+  <h1>YU-Sync · How it works</h1>
+  <p>Docs and an interactive simulator for the DFS + bitmask engine that powers conflict-free university scheduling.</p>
 
   [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](./LICENSE)
   [![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)](https://react.dev)
   [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org)
   [![Vite](https://img.shields.io/badge/Vite-7-646cff?logo=vite&logoColor=white)](https://vite.dev)
-  [![Deployed on Vercel](https://img.shields.io/badge/Deployed%20on-Vercel-000000?logo=vercel&logoColor=white)](https://vercel.com)
 
-  **[yu-sync.com](https://yu-sync.com)** — the production scheduler this engine runs in
+  **[info.yu-sync.com](https://info.yu-sync.com)** · see this repo on the web
+
+  **[yu-sync.com](https://yu-sync.com)** · the production site
+
+  <img src="./app/public/og-image.jpg" alt="YU-Sync Visualizer Preview" width="880" />
 </div>
-
----
-
-![YU-Sync Visualizer Preview](./app/public/og-image.jpg)
 
 ## What is this?
 
-This is the open-source companion to **YU-Sync** — a university course scheduler. The visualizer exposes the algorithm internals so you can watch it think: every DFS branch explored, every bitmask conflict detected, every backtrack taken.
+**[yu-sync.com](https://yu-sync.com)** is a live university course scheduler. This repo explains how it works. The docs state the problem formally and prove what the engine does, and the simulator shows it thinking: every DFS branch explored, every bitmask conflict detected, every backtrack taken.
 
-## Try it: run the sandbox locally
+Everything here is readable on **[info.yu-sync.com](https://info.yu-sync.com)**, where the figures are interactive and the simulator is one click away in the nav.
 
-```bash
-git clone https://github.com/this-demir/yu-sync-info
-cd yu-sync-info/app
-npm install
-npm run dev       # opens at http://localhost:5173
-```
-
-Once running, head to the **Visualizer** page. Load a preset scenario or configure your own courses, then hit play — or step through the DFS one move at a time. The state-space tree grows live as the engine explores and prunes branches.
-
-For the full documentation — algorithm walkthrough, complexity analysis, bitmask math, generator pattern explanation, and an interactive parity benchmark you can run directly in the browser — open the **Docs** page inside the app.
-
-## Features
-
-| Feature | Description |
-|---|---|
-| **Step-by-step simulation** | Play, pause, step forward/back through the DFS with variable speed |
-| **Bitmask conflict detection** | See the bitwise `AND` operations live on the timetable grid |
-| **State-space tree** | Watch the decision tree grow — successful paths and pruned branches |
-| **Parity benchmarking** | Run the production engine vs. visualizer engine side-by-side to verify 100% deterministic equality |
-| **Test scenarios** | Pre-configured edge cases: cross-semester collisions, heavy lab blocks |
-| **Interactive whitepaper** | Academic-grade documentation with Boolean algebra and DFS proofs, built into the app |
-
-## Algorithm
-
-The scheduler combines **bitmask conflict detection** with **DFS backtracking**:
+## The algorithm
 
 ```
 For each course, iterate candidate sections:
@@ -55,52 +30,18 @@ For each course, iterate candidate sections:
   else         → conflict detected → prune the subtree, backtrack
 ```
 
-Each day's schedule is a single integer. An `AND` with a section's bitmask detects any overlap without iterating over time slots.
+Each day's schedule is a single integer. An `AND` with a section's bitmask detects any overlap without iterating over time slots, and the search backtracks the moment a section does not fit.
 
-## The paper
+## The docs
 
-[`docs/`](./docs) contains a self-contained academic write-up of the problem and the engine, complete on its own without running the app.
+[`docs/`](./docs) is a numbered write-up, complete on its own without running anything. Start at [`docs/README.md`](./docs/README.md).
 
-- The problem is defined formally and **proved NP-complete** by reduction from graph 3-colouring — [`docs/03-complexity.md`](./docs/03-complexity.md)
-- The engine is **proved sound and complete** via a loop invariant — [`docs/04-algorithm.md`](./docs/04-algorithm.md)
-- Four **reproducible experiments** with committed data and figures, including a constraint-density phase transition — [`docs/06-evaluation.md`](./docs/06-evaluation.md)
-- What the work does *not* establish — [`docs/08-limitations.md`](./docs/08-limitations.md)
+- [`03-complexity.md`](./docs/03-complexity.md), the problem defined formally and **proved NP-complete** by reduction from graph 3-colouring
+- [`04-algorithm.md`](./docs/04-algorithm.md), the engine **proved sound and complete** via a loop invariant
+- [`06-evaluation.md`](./docs/06-evaluation.md), four seeded experiments with committed data and figures, including a constraint-density phase transition
+- [`08-limitations.md`](./docs/08-limitations.md), what the work does *not* establish
 
-Start at [`docs/README.md`](./docs/README.md). Regenerate every number and figure with `cd app && npm run bench`.
-
-Three claims made by earlier versions of these docs did not survive that scrutiny. The conflict check is constant-time only for a fixed slot universe ([`docs/04-algorithm.md`](./docs/04-algorithm.md)), the traversal is not allocation-free ([`docs/05-implementation.md`](./docs/05-implementation.md)), and the pruning benefit is a function of size and density rather than a constant ([`docs/06-evaluation.md`](./docs/06-evaluation.md)).
-
-
-## Repo layout
-
-```
-yu-sync-info/
-├── app/                  # the full React + Vite frontend
-│   ├── src/
-│   │   ├── core/         # SimulationEngine.ts · scheduler.ts · time.ts · types.ts
-│   │   ├── bench/        # instance generation · the four experiments
-│   │   ├── store/        # useSimulationStore · useRouteStore
-│   │   ├── pages/        # Landing · Visualizer · Docs · Media
-│   │   └── components/
-│   ├── scripts/          # figure generator writing docs/data + docs/figures
-│   ├── public/
-│   ├── index.html
-│   └── package.json
-└── docs/                 # the numbered paper, plus data/ and figures/
-    ├── 00-abstract.md … 09-references.md
-    ├── data/             # raw experiment output (JSON)
-    └── figures/          # generated SVG figures
-```
-
-```bash
-# from app/
-npm run test      # Vitest watch mode
-npm run coverage  # V8 coverage report
-npm run bench     # rerun all experiments, regenerate docs/data + docs/figures
-npm run build     # type-check + production build
-```
-
-**Key invariant:** `scheduler.ts` and `SimulationEngine.ts` must always produce identical schedules. `EngineParity.test.ts` enforces this automatically.
+Three claims made by earlier versions of these docs did not survive that scrutiny and are corrected in place. The conflict check is constant-time only for a fixed slot universe, the traversal is not allocation-free, and the pruning benefit is a function of size and density rather than a constant.
 
 ## License
 

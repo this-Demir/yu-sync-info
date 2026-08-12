@@ -156,7 +156,7 @@ export default function PhaseTransitionRunner() {
             source="Experiment 4, section 6"
             caption={
                 <>
-                    Calls the same instance generator and the same engine that produced Figures 4 and 5 in the paper. At
+                    Calls the same instance generator and the same engine that produced Figures 4 and 5 in the docs. At
                     the published settings, {PUBLISHED.config.courses} courses and{" "}
                     {PUBLISHED.config.instancesPerPoint} instances per point at seed {PUBLISHED.config.baseSeed}, this
                     reproduces the published curve exactly. The default of 40 instances per point is lower so the sweep
@@ -240,9 +240,9 @@ export default function PhaseTransitionRunner() {
 
                     <div className="grid gap-2 sm:grid-cols-3">
                         {[
-                            { k: "Cost peak", v: peak ? `density ${peak.density.toFixed(3)}` : "—", s: peak ? `${Math.round(peak.meanNodes).toLocaleString("en-US")} mean nodes` : "" },
-                            { k: "Solvability crossover", v: crossover ? `density ${crossover.density.toFixed(3)}` : "—", s: crossover ? `${(crossover.solvable * 100).toFixed(0)}% solvable` : "" },
-                            { k: "Peak against easiest", v: peak && points.length > 0 ? `${(peak.meanNodes / points[points.length - 1]!.meanNodes).toFixed(0)}×` : "—", s: "mean nodes ratio" },
+                            { k: "Cost peak", v: peak ? `density ${peak.density.toFixed(3)}` : "not found", s: peak ? `${Math.round(peak.meanNodes).toLocaleString("en-US")} mean nodes` : "" },
+                            { k: "Solvability crossover", v: crossover ? `density ${crossover.density.toFixed(3)}` : "not found", s: crossover ? `${(crossover.solvable * 100).toFixed(0)}% solvable` : "" },
+                            { k: "Peak against easiest", v: peak && points.length > 0 ? `${(peak.meanNodes / points[points.length - 1]!.meanNodes).toFixed(0)}×` : "not found", s: "mean nodes ratio" },
                         ].map(item => (
                             <div key={item.k} className="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2">
                                 <div className="text-[9px] font-bold uppercase tracking-wider text-gray-400">{item.k}</div>
@@ -254,7 +254,7 @@ export default function PhaseTransitionRunner() {
 
                     {matchesPublished && !running && peak && (
                         <p className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-[11px] leading-relaxed text-emerald-900">
-                            These are the published settings, so this run reproduces Figure 4. The paper reports a peak at
+                            These are the published settings, so this run reproduces Figure 4. The docs report a peak at
                             density {PUBLISHED.peak?.meanDensity.toFixed(3)} and this run found{" "}
                             {peak.density.toFixed(3)}.
                         </p>

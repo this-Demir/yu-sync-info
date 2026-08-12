@@ -9,7 +9,7 @@ export default function Navbar() {
             <div className="mx-auto w-full px-4 md:px-6 h-14 flex items-center justify-between">
 
                 {/* Left Side (Breadcrumbs) */}
-                <div className="flex items-center gap-2 text-sm cursor-pointer" onClick={() => navigate('landing')}>
+                <div className="flex items-center gap-2 text-sm cursor-pointer" onClick={() => navigate('docs')}>
                     <img
                         src="/yu-sync-media/blue-logo-bg-removed.png"
                         alt="YU-Sync"
@@ -21,22 +21,22 @@ export default function Navbar() {
                     <span className="text-gray-300">/</span>
                     <span className="font-mono text-gray-600 hover:text-gray-900 transition-colors">yu-sync-info</span>
                     <span className="text-gray-300">/</span>
-                    <span className="font-semibold text-gray-900">{currentPage === 'landing' ? 'overview' : currentPage}</span>
+                    <span className="font-semibold text-gray-900">{currentPage}</span>
                 </div>
 
                 {/* Center (Tabs) */}
                 <nav className="hidden md:flex items-center gap-6 absolute left-1/2 -translate-x-1/2 h-full">
                     <button
+                        onClick={() => navigate('docs')}
+                        className={`h-full flex items-center border-b-2 px-1 text-sm font-medium transition-colors ${currentPage === 'docs' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
+                    >
+                        Docs
+                    </button>
+                    <button
                         onClick={() => navigate('simulator')}
                         className={`h-full flex items-center border-b-2 px-1 text-sm font-medium transition-colors ${currentPage === 'simulator' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
                     >
                         Simulator
-                    </button>
-                    <button
-                        onClick={() => navigate('docs')}
-                        className={`h-full flex items-center border-b-2 px-1 text-sm font-medium transition-colors ${currentPage === 'docs' ? 'border-black text-black' : 'border-transparent text-gray-500 hover:text-gray-800'}`}
-                    >
-                        The Paper
                     </button>
                     <button
                         onClick={() => navigate('media')}
